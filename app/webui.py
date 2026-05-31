@@ -2,15 +2,20 @@ import streamlit as st
 from pathlib import Path
 import sys
 import re
+import io
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from goldmine.engine import GoldMineEngine
 from goldmine.key_store import save_key, load_key
 from goldmine.llm import get_llm_provider
+from goldmine.scorer import score_output
+from goldmine.history import save_run, list_runs, load_run, delete_run
+from goldmine.publisher.twitter import post_thread
+from goldmine.publisher.linkedin import post_linkedin
+from goldmine.publisher.webhook import post_webhook
 
 
 def _unwrap(e: Exception) -> str:
-    """Pull the real error out of a tenacity RetryError."""
     if hasattr(e, "last_attempt"):
         inner = e.last_attempt.exception()
         if inner is not None:
@@ -20,7 +25,9 @@ def _unwrap(e: Exception) -> str:
 
 def _is_auth_error(msg: str) -> bool:
     msg = msg.lower()
-    return any(k in msg for k in ("authentication", "api key", "invalid key", "incorrect api", "permission denied", "unauthenticated", "401", "403"))
+    return any(k in msg for k in ("authentication", "api key", "invalid key", "incorrect api",
+                                  "permission denied", "unauthenticated", "401", "403"))
+
 
 st.set_page_config(
     page_title="ContentGoldMine",
@@ -133,6 +140,20 @@ st.markdown("""
     font-size: 0.78rem; color: #D4AF37; font-weight: 600;
   }
 
+  .score-bar {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    background: #0F0F16; border: 1px solid #1E1E2A; border-radius: 10px;
+    padding: 0.7rem 1rem; margin-bottom: 1rem;
+  }
+  .score-chip {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 0.8rem; font-weight: 700;
+  }
+  .score-high { color: #4CAF50; }
+  .score-mid  { color: #FF9800; }
+  .score-low  { color: #F44336; }
+  .score-tip  { color: #888; font-size: 0.78rem; font-style: italic; margin-left: 4px; }
+
   .success-banner {
     background: linear-gradient(135deg, #0D1F0D, #0D1A0D);
     border: 1px solid #1E4D1E; border-radius: 12px;
@@ -144,6 +165,15 @@ st.markdown("""
     background: #0F0F14; border: 1px solid #222230;
     border-radius: 14px; padding: 1.4rem 1.8rem; margin-bottom: 1rem;
   }
+
+  .history-item {
+    background: #0F0F14; border: 1px solid #1E1E26; border-radius: 8px;
+    padding: 0.6rem 0.9rem; margin-bottom: 0.4rem; cursor: pointer;
+  }
+  .history-title { font-size: 0.85rem; color: #D0D0D0; font-weight: 600; }
+  .history-meta  { font-size: 0.72rem; color: #555; margin-top: 2px; }
+
+  .cal-header { font-size: 1rem; font-weight: 800; color: #D4AF37; margin: 1.2rem 0 0.6rem; }
 
   .stTextArea textarea {
     background: #0D0D12 !important; color: #CCCCCC !important;
@@ -167,6 +197,7 @@ PLATFORM_STEPS  = {
     "carousel":    "🎠  Building carousel slides...",
     "video_script":"🎬  Scripting video...",
 }
+DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 # ── Hero ──────────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -202,8 +233,6 @@ with st.sidebar:
 
     # ── API Key with memory ────────────────────────────────────────────────────
     st.markdown("**API Key**")
-
-    # Load saved key when provider changes
     _provider_key = f"_loaded_{provider}"
     if not st.session_state.get(_provider_key):
         stored = load_key(provider)
@@ -214,11 +243,9 @@ with st.sidebar:
     key_col, save_col = st.columns([4, 1])
     with key_col:
         api_key = st.text_input(
-            "key",
-            type="password",
+            "key", type="password",
             placeholder="Paste your API key → press Enter",
-            key="_api_key",
-            label_visibility="collapsed",
+            key="_api_key", label_visibility="collapsed",
         )
     with save_col:
         st.write("")
@@ -235,7 +262,6 @@ with st.sidebar:
     else:
         st.caption("Hit 💾 to save your key locally")
 
-    # ── Test Key button ────────────────────────────────────────────────────────
     if st.button("🔑 Test API Key", key="test_key_btn", use_container_width=True):
         if not api_key:
             st.error("Paste a key first.")
@@ -264,15 +290,13 @@ with st.sidebar:
     )
 
     brand_voice = st.text_area(
-        "Brand Voice (optional)",
-        height=90,
+        "Brand Voice (optional)", height=90,
         placeholder="e.g. I'm a no-BS startup founder. I use plain English, short sentences, and I never use buzzwords like 'leverage' or 'synergy'.",
         help="Injected into every prompt. Your outputs will sound like you.",
     )
 
     carousel_theme = st.selectbox(
-        "Carousel Theme",
-        ["gold", "dark", "light"],
+        "Carousel Theme", ["gold", "dark", "light"],
         format_func=lambda x: {"gold": "⭐ Gold", "dark": "🌑 Dark", "light": "☀️ Light"}[x],
     )
 
@@ -287,6 +311,47 @@ with st.sidebar:
     }
     selected_platforms = [k for k, v in platforms.items() if v]
 
+    # ── Publishing credentials ─────────────────────────────────────────────────
+    st.divider()
+    with st.expander("📤 Publishing credentials"):
+        st.caption("Store once — used by the Post buttons in each output tab.")
+
+        tw_ck  = st.text_input("X Consumer Key",    type="password", key="tw_ck",  value=load_key("tw_consumer_key")  or "")
+        tw_cs  = st.text_input("X Consumer Secret", type="password", key="tw_cs",  value=load_key("tw_consumer_secret") or "")
+        tw_at  = st.text_input("X Access Token",    type="password", key="tw_at",  value=load_key("tw_access_token")  or "")
+        tw_as  = st.text_input("X Access Secret",   type="password", key="tw_as",  value=load_key("tw_access_secret") or "")
+        li_tok = st.text_input("LinkedIn Access Token", type="password", key="li_tok", value=load_key("linkedin_token") or "")
+        wh_url = st.text_input("Webhook URL (Buffer/Zapier)", key="wh_url", value=load_key("webhook_url") or "",
+                               placeholder="https://hooks.zapier.com/...")
+
+        if st.button("💾 Save publishing keys", key="save_pub_keys"):
+            for k, v in [("tw_consumer_key", tw_ck), ("tw_consumer_secret", tw_cs),
+                         ("tw_access_token", tw_at), ("tw_access_secret", tw_as),
+                         ("linkedin_token", li_tok), ("webhook_url", wh_url)]:
+                if v:
+                    save_key(k, v)
+            st.success("Saved!")
+
+    # ── History browser ────────────────────────────────────────────────────────
+    st.divider()
+    with st.expander("🕘 History"):
+        runs = list_runs(30)
+        if not runs:
+            st.caption("No saved runs yet — generate something first!")
+        else:
+            run_options = {f"{r['created_at'][:16]}  {r['title'][:35]}": r["id"] for r in runs}
+            selected_label = st.selectbox("Past runs", list(run_options.keys()), label_visibility="collapsed")
+            selected_id = run_options[selected_label]
+
+            hcol1, hcol2 = st.columns(2)
+            with hcol1:
+                if st.button("📂 Load", key="hist_load", use_container_width=True):
+                    st.session_state["_history_load_id"] = selected_id
+            with hcol2:
+                if st.button("🗑️ Delete", key="hist_del", use_container_width=True):
+                    delete_run(selected_id)
+                    st.rerun()
+
     st.divider()
     st.caption("⛏️ [ContentGoldMine on GitHub](https://github.com/mohitagw15856/ContentGoldMine)")
 
@@ -295,6 +360,31 @@ with st.sidebar:
 def char_chip(n: int) -> str:
     cls = "chars-ok" if n <= 240 else "chars-warn" if n <= 280 else "chars-over"
     return f'<span class="tweet-chars {cls}">{n}/280</span>'
+
+
+def _score_color(v: int) -> str:
+    if v >= 8: return "score-high"
+    if v >= 5: return "score-mid"
+    return "score-low"
+
+
+def render_score_bar(score: dict):
+    if not score:
+        return
+    hook = score.get("hook_strength", 0)
+    eng  = score.get("engagement_score", 0)
+    tip  = score.get("tip", "")
+    hc = _score_color(hook)
+    ec = _score_color(eng)
+    st.markdown(
+        f'<div class="score-bar">'
+        f'<span class="score-chip"><span>🎯 Hook</span><span class="{hc}">{hook}/10</span></span>'
+        f'<span class="score-chip"><span>📈 Engagement</span><span class="{ec}">{eng}/10</span></span>'
+        f'{"<span class=\"score-tip\">💡 " + tip + "</span>" if tip else ""}'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
 
 def render_thread(output: dict):
     for tweet in output.get("tweets") or []:
@@ -305,12 +395,14 @@ def render_thread(output: dict):
 <div class="tweet-num">{num}</div>
 <div class="tweet-text">{body}</div></div>""", unsafe_allow_html=True)
 
+
 def render_linkedin(output: dict):
     body = output.get("raw","").replace("\n","<br>")
     st.markdown(f"""<div class="li-card"><div class="li-header">
 <div class="li-avatar">M</div>
 <div><div class="li-name">Mohit</div><div class="li-meta">Content Creator · ContentGoldMine</div></div>
 </div>{body}</div>""", unsafe_allow_html=True)
+
 
 def render_newsletter(output: dict):
     raw = output.get("raw","")
@@ -334,6 +426,7 @@ def render_newsletter(output: dict):
     st.markdown('<div class="nl-body">', unsafe_allow_html=True)
     st.markdown(body)
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 def render_video_script(output: dict):
     raw = output.get("raw","")
@@ -361,6 +454,7 @@ def render_video_script(output: dict):
         i += 2
     st.markdown(html, unsafe_allow_html=True)
 
+
 def render_carousel(output: dict):
     paths = output.get("image_paths") or []
     if not paths:
@@ -372,9 +466,73 @@ def render_carousel(output: dict):
         for col, p in zip(cols, row):
             with col:
                 st.image(p, use_container_width=True)
-    st.caption(f"📁 Saved to `assets/carousel_output/`")
+    st.caption("📁 Saved to `assets/carousel_output/`")
 
-def render_output_tabs(outputs: dict):
+
+def _render_publish_panel(key: str, output: dict, tab_key: str):
+    """Render the publish expander for a single platform output."""
+    raw = output.get("raw", "")
+    if not raw:
+        return
+
+    with st.expander("📤 Post to platform", expanded=False):
+        pub_tab_x, pub_tab_li, pub_tab_wh = st.tabs(["𝕏 Post to X", "💼 Post to LinkedIn", "🔗 Webhook"])
+
+        # ── X / Twitter ───────────────────────────────────────────────────────
+        with pub_tab_x:
+            ck = load_key("tw_consumer_key")
+            cs = load_key("tw_consumer_secret")
+            at = load_key("tw_access_token")
+            as_ = load_key("tw_access_secret")
+            if not all([ck, cs, at, as_]):
+                st.warning("Add your X API keys in the sidebar → Publishing credentials.")
+            else:
+                st.caption("Will post as a chained thread.")
+                if st.button("🚀 Post Thread to X", key=f"post_x_{tab_key}", use_container_width=True):
+                    tweets = output.get("tweets") if key == "x_thread" else [raw[i:i+270] for i in range(0, len(raw), 270)]
+                    if not tweets:
+                        tweets = [raw[:270]]
+                    with st.spinner("Posting thread..."):
+                        try:
+                            ids = post_thread(tweets, ck, cs, at, as_)
+                            st.success(f"✅ Posted {len(ids)} tweet(s)! First tweet ID: {ids[0]}")
+                        except Exception as e:
+                            st.error(f"Failed: {e}")
+
+        # ── LinkedIn ──────────────────────────────────────────────────────────
+        with pub_tab_li:
+            li_tok = load_key("linkedin_token")
+            if not li_tok:
+                st.warning("Add your LinkedIn Access Token in the sidebar → Publishing credentials.")
+                st.caption("Get one at [linkedin.com/developers](https://www.linkedin.com/developers/)")
+            else:
+                st.caption("Posts as a public text share.")
+                if st.button("🚀 Post to LinkedIn", key=f"post_li_{tab_key}", use_container_width=True):
+                    with st.spinner("Posting..."):
+                        try:
+                            post_linkedin(raw[:3000], li_tok)
+                            st.success("✅ Posted to LinkedIn!")
+                        except Exception as e:
+                            st.error(f"Failed: {e}")
+
+        # ── Webhook ───────────────────────────────────────────────────────────
+        with pub_tab_wh:
+            wh = load_key("webhook_url")
+            if not wh:
+                st.warning("Add your webhook URL in the sidebar → Publishing credentials.")
+                st.caption("Works with Zapier, Buffer, Make.com, n8n, etc.")
+            else:
+                st.caption(f"Sends JSON to: `{wh[:60]}...`" if len(wh) > 60 else f"Sends JSON to: `{wh}`")
+                if st.button("📡 Send to Webhook", key=f"post_wh_{tab_key}", use_container_width=True):
+                    with st.spinner("Sending..."):
+                        try:
+                            result = post_webhook(wh, {"platform": key, "content": raw})
+                            st.success(f"✅ Webhook delivered! Response: {str(result)[:100]}")
+                        except Exception as e:
+                            st.error(f"Failed: {e}")
+
+
+def render_output_tabs(outputs: dict, scores: dict | None = None, tab_prefix: str = ""):
     labels = [
         f"{'❌' if 'error' in v else PLATFORM_ICONS.get(k,'')} {PLATFORM_LABELS.get(k,k)}"
         for k, v in outputs.items()
@@ -385,17 +543,24 @@ def render_output_tabs(outputs: dict):
             if "error" in output:
                 st.error(f"Failed: {output['error']}")
                 continue
+
+            # ── Score bar ─────────────────────────────────────────────────────
+            if scores and key in scores and scores[key]:
+                render_score_bar(scores[key])
+
+            # ── Stat chips ────────────────────────────────────────────────────
             chips = []
-            if "tweet_count" in output:   chips.append(f"🐦 {output['tweet_count']} tweets")
-            if "char_count"  in output:   chips.append(f"📝 {output['char_count']:,} chars")
-            if "word_count"  in output:   chips.append(f"📖 {output['word_count']} words")
-            if "slide_count" in output:   chips.append(f"🖼️ {output['slide_count']} slides")
+            if "tweet_count" in output:            chips.append(f"🐦 {output['tweet_count']} tweets")
+            if "char_count"  in output:            chips.append(f"📝 {output['char_count']:,} chars")
+            if "word_count"  in output:            chips.append(f"📖 {output['word_count']} words")
+            if "slide_count" in output:            chips.append(f"🖼️ {output['slide_count']} slides")
             if "estimated_duration_sec" in output: chips.append(f"⏱️ ~{output['estimated_duration_sec']}s")
             if chips:
                 st.markdown(
                     '<div class="chips">' + "".join(f'<span class="chip">{c}</span>' for c in chips) + "</div>",
                     unsafe_allow_html=True,
                 )
+
             if   key == "x_thread":    render_thread(output)
             elif key == "linkedin":    render_linkedin(output)
             elif key == "newsletter":  render_newsletter(output)
@@ -403,11 +568,15 @@ def render_output_tabs(outputs: dict):
             elif key == "carousel":    render_carousel(output)
 
             st.caption("📋 Copy text — click the icon in the top-right corner of the box:")
-            st.code(output["raw"], language=None, wrap_lines=True)
+            st.code(output.get("raw", ""), language=None, wrap_lines=True)
+
+            # ── Publish panel ─────────────────────────────────────────────────
+            if key != "carousel":
+                _render_publish_panel(key, output, tab_key=f"{tab_prefix}{key}")
 
 
 def build_zip(results: dict) -> bytes:
-    import zipfile, io
+    import zipfile
     buf = io.BytesIO()
     title_slug = re.sub(r"[^\w\s-]", "", results["source"].get("title", "content"))[:40].strip().replace(" ", "_")
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -427,8 +596,70 @@ def build_zip(results: dict) -> bytes:
     return buf.read()
 
 
+def _score_all(llm, outputs: dict) -> dict:
+    """Run viral scoring for all non-carousel, non-error outputs."""
+    scores = {}
+    for key, output in outputs.items():
+        if "error" in output or key == "carousel" or not output.get("raw"):
+            continue
+        scores[key] = score_output(llm, PLATFORM_LABELS.get(key, key), output["raw"])
+    return scores
+
+
+def render_content_calendar(batch_results: list[dict]):
+    """Render a weekly content calendar from batch results using st.data_editor."""
+    import pandas as pd
+
+    st.markdown('<div class="cal-header">📅 Weekly Content Calendar</div>', unsafe_allow_html=True)
+    st.caption("Drag to reorder • Edit any cell • Export as CSV for Buffer or Hootsuite")
+
+    rows = []
+    day_idx = 0
+    for result in batch_results:
+        title = result["source"].get("title", "Untitled")[:50]
+        for platform_key, output in result["outputs"].items():
+            if "error" in output or platform_key == "carousel":
+                continue
+            rows.append({
+                "Day":      DAYS[day_idx % 7],
+                "Platform": PLATFORM_ICONS.get(platform_key, "") + " " + PLATFORM_LABELS.get(platform_key, platform_key),
+                "Title":    title,
+                "Status":   "Draft",
+                "Preview":  (output.get("raw", "")[:80] + "...").strip(),
+            })
+            day_idx += 1
+
+    if not rows:
+        st.info("No content to calendar.")
+        return
+
+    df = pd.DataFrame(rows)
+    edited = st.data_editor(
+        df,
+        use_container_width=True,
+        num_rows="dynamic",
+        column_config={
+            "Day":      st.column_config.SelectboxColumn("Day", options=DAYS, required=True),
+            "Platform": st.column_config.TextColumn("Platform"),
+            "Title":    st.column_config.TextColumn("Title"),
+            "Status":   st.column_config.SelectboxColumn("Status", options=["Draft", "Scheduled", "Posted"], required=True),
+            "Preview":  st.column_config.TextColumn("Preview", width="large"),
+        },
+        hide_index=True,
+        key="content_calendar",
+    )
+
+    csv_bytes = edited.to_csv(index=False).encode()
+    st.download_button(
+        "📥 Export Calendar as CSV",
+        data=csv_bytes,
+        file_name="content_calendar.csv",
+        mime="text/csv",
+        use_container_width=False,
+    )
+
+
 def run_with_status(engine: GoldMineEngine, input_type: str, value: str, slug: str = "default") -> dict | None:
-    """Process content with a live status widget showing each step."""
     outputs = {}
     with st.status("⛏️ Mining content gold...", expanded=True) as status:
         try:
@@ -447,9 +678,17 @@ def run_with_status(engine: GoldMineEngine, input_type: str, value: str, slug: s
                     outputs[platform] = {"error": err, "raw": ""}
                     st.write(f"⚠️ {PLATFORM_LABELS[platform]} failed: {err[:120]}")
 
+            # Score all generated outputs
+            scoreable = {k: v for k, v in outputs.items() if "error" not in v and k != "carousel" and v.get("raw")}
+            scores = {}
+            if scoreable:
+                st.write("🏆 Scoring content quality...")
+                scores = _score_all(engine.llm, outputs)
+                st.write("✅ Scores ready")
+
             n_ok = len([o for o in outputs.values() if "error" not in o])
             status.update(label=f"✅ Done — {n_ok}/{len(selected_platforms)} formats generated", state="complete", expanded=False)
-            return {"source": content, "outputs": outputs}
+            return {"source": content, "outputs": outputs, "scores": scores}
 
         except Exception as e:
             err = _unwrap(e)
@@ -467,8 +706,7 @@ batch_mode = st.toggle("📦 Batch Mode — process multiple URLs at once", valu
 if batch_mode:
     st.markdown("**Enter URLs — one per line** (blog articles, YouTube videos, or mix both):")
     urls_raw = st.text_area(
-        "urls",
-        height=140,
+        "urls", height=140,
         placeholder="https://medium.com/your-article\nhttps://youtube.com/watch?v=...\nhttps://yourblog.com/post",
         label_visibility="collapsed",
     )
@@ -495,8 +733,7 @@ with btn_col:
     generate = st.button(label, use_container_width=True)
 
 
-# ── Generate ──────────────────────────────────────────────────────────────────
-# Show auth error banner if the last run had a bad key
+# ── Auth error banner ─────────────────────────────────────────────────────────
 if auth_err := st.session_state.pop("_auth_error", None):
     st.markdown(f"""<div class="auth-banner">
 🔑 <b>Invalid API Key</b><br>
@@ -504,6 +741,25 @@ Your key was rejected by {provider.upper()}. Please check it and try again.<br>
 <small style="opacity:0.7">{auth_err[:200]}</small>
 </div>""", unsafe_allow_html=True)
 
+
+# ── History load ──────────────────────────────────────────────────────────────
+if hist_id := st.session_state.pop("_history_load_id", None):
+    hist_run = load_run(hist_id)
+    if hist_run:
+        st.markdown(f"### 🕘 Loaded: {hist_run['title']}")
+        st.caption(f"Saved on {hist_run['created_at']} | Source: {hist_run['source_type']} | {hist_run['source_value'][:60]}")
+        render_output_tabs(hist_run["outputs"], tab_prefix=f"hist_{hist_id}_")
+        zip_data = build_zip({"source": {"title": hist_run["title"]}, "outputs": hist_run["outputs"]})
+        st.download_button(
+            "📦 Download as ZIP",
+            data=zip_data,
+            file_name=f"contentgoldmine_history_{hist_id}.zip",
+            mime="application/zip",
+        )
+        st.divider()
+
+
+# ── Generate ──────────────────────────────────────────────────────────────────
 if generate:
     if not api_key:
         st.error("Paste your API key in the sidebar — or hit 💾 to save one permanently.")
@@ -533,7 +789,11 @@ if generate:
             result = run_with_status(engine, input_t, url, slug=f"batch_{i}")
             if result:
                 all_results.append(result)
-                render_output_tabs(result["outputs"])
+                save_run(
+                    result["source"].get("title", url),
+                    input_t, url, result["outputs"],
+                )
+                render_output_tabs(result["outputs"], scores=result.get("scores"), tab_prefix=f"b{i}_")
                 zip_data = build_zip(result)
                 title_slug = re.sub(r"[^\w]", "_", result["source"].get("title","content"))[:30]
                 st.download_button(
@@ -548,6 +808,9 @@ if generate:
         n_ok = len(all_results)
         st.markdown(f'<div class="success-banner">✅ Batch complete — {n_ok}/{len(urls)} URLs processed successfully.</div>', unsafe_allow_html=True)
 
+        if all_results:
+            render_content_calendar(all_results)
+
     # ── Single mode ───────────────────────────────────────────────────────────
     else:
         if not user_input or not user_input.strip():
@@ -558,6 +821,8 @@ if generate:
         if result:
             source = result["source"]
             n_ok = sum(1 for v in result["outputs"].values() if "error" not in v)
+
+            save_run(source.get("title", user_input[:60]), input_type, user_input, result["outputs"])
 
             banner_col, zip_col = st.columns([3, 1])
             with banner_col:
@@ -573,4 +838,4 @@ if generate:
                     use_container_width=True,
                 )
 
-            render_output_tabs(result["outputs"])
+            render_output_tabs(result["outputs"], scores=result.get("scores"))

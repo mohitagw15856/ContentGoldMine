@@ -1,33 +1,33 @@
 import trafilatura
-import requests
+from trafilatura.settings import use_config
 from loguru import logger
 
 
 class URLIngestor:
     """Extracts clean article text from any blog/article URL."""
 
-    HEADERS = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/124.0.0.0 Safari/537.36"
-        )
-    }
-
     def ingest(self, url: str) -> dict:
         logger.info(f"Ingesting URL: {url}")
         try:
-            response = requests.get(url, headers=self.HEADERS, timeout=15)
-            response.raise_for_status()
+            # Use trafilatura's own fetcher — handles bot-detection, redirects,
+            # and paywalled sites (Medium, Substack, etc.) better than raw requests
+            config = use_config()
+            config.set("DEFAULT", "DOWNLOAD_TIMEOUT", "20")
+            downloaded = trafilatura.fetch_url(url, config=config)
+            if not downloaded:
+                raise ValueError("Could not download page. The site may be blocking automated access.")
+
+            metadata = trafilatura.extract_metadata(downloaded)
             text = trafilatura.extract(
-                response.text,
+                downloaded,
                 include_comments=False,
                 include_tables=False,
-                no_fallback=False,
+                favor_recall=True,
             )
             if not text:
-                raise ValueError("Could not extract readable text from URL.")
-            title = self._extract_title(response.text)
+                raise ValueError("Could not extract readable text. Try pasting the content directly as Raw Text.")
+
+            title = (metadata.title if metadata and metadata.title else None) or self._extract_title(downloaded)
             logger.success(f"Extracted {len(text)} chars from {url}")
             return {"title": title, "content": text, "source": url}
         except Exception as e:

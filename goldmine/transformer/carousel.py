@@ -35,7 +35,7 @@ class CarouselTransformer(BaseTransformer):
     def transform(self, content: dict) -> dict:
         instructions = INSTRUCTIONS.format(language=self.language)
         user_prompt = self._build_prompt(content, instructions)
-        result = self.llm.complete(SYSTEM_PROMPT, user_prompt)
+        result = self.llm.complete(self._system_prompt(SYSTEM_PROMPT), user_prompt)
         slides = self._parse_slides(result)
         return {
             "platform": self.platform,

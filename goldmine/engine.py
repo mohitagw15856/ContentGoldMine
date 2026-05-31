@@ -30,11 +30,15 @@ class GoldMineEngine:
         api_key: str,
         model: str | None = None,
         language: str = "English",
+        tone: str = "Default",
+        brand_voice: str = "",
         carousel_theme: str = "gold",
         output_dir: str = "assets/carousel_output",
     ):
         self.llm = get_llm_provider(llm_provider, api_key, model)
         self.language = language
+        self.tone = tone
+        self.brand_voice = brand_voice
         self.carousel_theme = carousel_theme
         self.output_dir = Path(output_dir)
 
@@ -54,7 +58,7 @@ class GoldMineEngine:
         """Transform already-ingested content for a single platform."""
         if platform_key not in PLATFORMS:
             raise ValueError(f"Unknown platform: {platform_key}")
-        transformer = PLATFORMS[platform_key](self.llm, self.language)
+        transformer = PLATFORMS[platform_key](self.llm, self.language, self.tone, self.brand_voice)
         output = transformer.transform(content)
         if platform_key == "carousel" and output.get("slides"):
             renderer = CarouselRenderer(theme=self.carousel_theme)
@@ -83,7 +87,7 @@ class GoldMineEngine:
                 logger.warning(f"Unknown platform: {platform_key}, skipping")
                 continue
             try:
-                transformer = PLATFORMS[platform_key](self.llm, self.language)
+                transformer = PLATFORMS[platform_key](self.llm, self.language, self.tone, self.brand_voice)
                 logger.info(f"Transforming → {platform_key}")
                 output = transformer.transform(content)
 

@@ -256,6 +256,20 @@ with st.sidebar:
 
     st.divider()
     language = st.selectbox("Output Language", ["English", "Spanish", "French", "German", "Portuguese", "Hindi", "Arabic"])
+
+    tone = st.selectbox(
+        "Tone & Persona",
+        ["Default", "Professional", "Casual & Fun", "Contrarian", "Educational", "Storytelling"],
+        help="Shapes the voice and style of every output.",
+    )
+
+    brand_voice = st.text_area(
+        "Brand Voice (optional)",
+        height=90,
+        placeholder="e.g. I'm a no-BS startup founder. I use plain English, short sentences, and I never use buzzwords like 'leverage' or 'synergy'.",
+        help="Injected into every prompt. Your outputs will sound like you.",
+    )
+
     carousel_theme = st.selectbox(
         "Carousel Theme",
         ["gold", "dark", "light"],
@@ -388,8 +402,29 @@ def render_output_tabs(outputs: dict):
             elif key == "video_script":render_video_script(output)
             elif key == "carousel":    render_carousel(output)
 
-            with st.expander("📋 Copy raw text"):
-                st.text_area("", value=output["raw"], height=260, key=f"raw_{key}_{id(output)}", label_visibility="collapsed")
+            st.caption("📋 Copy text — click the icon in the top-right corner of the box:")
+            st.code(output["raw"], language=None, wrap_lines=True)
+
+
+def build_zip(results: dict) -> bytes:
+    import zipfile, io
+    buf = io.BytesIO()
+    title_slug = re.sub(r"[^\w\s-]", "", results["source"].get("title", "content"))[:40].strip().replace(" ", "_")
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for key, output in results["outputs"].items():
+            if "error" in output or not output.get("raw"):
+                continue
+            fname = {"x_thread": "x_thread.txt", "linkedin": "linkedin.txt",
+                     "newsletter": "newsletter.txt", "video_script": "video_script.txt",
+                     "carousel": "carousel_script.txt"}.get(key, f"{key}.txt")
+            zf.writestr(fname, output["raw"])
+            if key == "carousel":
+                for img_path in output.get("image_paths") or []:
+                    p = Path(img_path)
+                    if p.exists():
+                        zf.write(p, f"carousel/{p.name}")
+    buf.seek(0)
+    return buf.read()
 
 
 def run_with_status(engine: GoldMineEngine, input_type: str, value: str, slug: str = "default") -> dict | None:
@@ -479,7 +514,8 @@ if generate:
 
     engine = GoldMineEngine(
         llm_provider=provider, api_key=api_key, model=model,
-        language=language, carousel_theme=carousel_theme,
+        language=language, tone=tone, brand_voice=brand_voice,
+        carousel_theme=carousel_theme,
     )
 
     # ── Batch mode ────────────────────────────────────────────────────────────
@@ -498,6 +534,15 @@ if generate:
             if result:
                 all_results.append(result)
                 render_output_tabs(result["outputs"])
+                zip_data = build_zip(result)
+                title_slug = re.sub(r"[^\w]", "_", result["source"].get("title","content"))[:30]
+                st.download_button(
+                    f"📦 Download ZIP — {result['source'].get('title','')[:40]}",
+                    data=zip_data,
+                    file_name=f"contentgoldmine_{title_slug}.zip",
+                    mime="application/zip",
+                    key=f"zip_batch_{i}",
+                )
             st.divider()
 
         n_ok = len(all_results)
@@ -513,5 +558,19 @@ if generate:
         if result:
             source = result["source"]
             n_ok = sum(1 for v in result["outputs"].values() if "error" not in v)
-            st.markdown(f'<div class="success-banner">✅ <b>{source.get("title","your content")}</b> → {n_ok} formats ready</div>', unsafe_allow_html=True)
+
+            banner_col, zip_col = st.columns([3, 1])
+            with banner_col:
+                st.markdown(f'<div class="success-banner">✅ <b>{source.get("title","your content")}</b> → {n_ok} formats ready</div>', unsafe_allow_html=True)
+            with zip_col:
+                zip_data = build_zip(result)
+                title_slug = re.sub(r"[^\w]", "_", source.get("title", "content"))[:30]
+                st.download_button(
+                    "📦 Download All as ZIP",
+                    data=zip_data,
+                    file_name=f"contentgoldmine_{title_slug}.zip",
+                    mime="application/zip",
+                    use_container_width=True,
+                )
+
             render_output_tabs(result["outputs"])

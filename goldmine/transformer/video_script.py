@@ -47,7 +47,7 @@ class VideoScriptTransformer(BaseTransformer):
     def transform(self, content: dict) -> dict:
         instructions = INSTRUCTIONS.format(language=self.language)
         user_prompt = self._build_prompt(content, instructions)
-        result = self.llm.complete(SYSTEM_PROMPT, user_prompt)
+        result = self.llm.complete(self._system_prompt(SYSTEM_PROMPT), user_prompt)
         word_count = len(result.split())
         estimated_seconds = int((word_count / 140) * 60)
         return {

@@ -1,28 +1,41 @@
 from .base import BaseTransformer
 
-SYSTEM_PROMPT = """You are a viral X (Twitter) content strategist who writes threads
-that get thousands of engagements. You understand hooks, pacing, and what makes people
-tap "read more" and retweet."""
+SYSTEM_PROMPT = """You are a top-1% X (Twitter) creator who has grown accounts to 100K+ followers.
+You write threads that get saved, retweeted, and quoted. You know that generic advice gets ignored
+— so you extract the sharpest, most non-obvious insight from any content and build a thread around it."""
 
-INSTRUCTIONS = """Transform the content into a viral X (Twitter) thread.
+INSTRUCTIONS = """Transform the content into a viral X thread. Follow this exact structure:
+
+TWEET 1 (Hook — the most important tweet):
+- Open with a bold, specific, counterintuitive claim OR a "most people don't know this" setup
+- No "Thread:" label. No "I". No fluff opener.
+- Must make someone stop scrolling. Example formats:
+  · "X does Y. But nobody talks about the Z part."
+  · "I [did/studied/analyzed] X. Here's what actually happens:"
+  · A shocking number or statistic as the first line
+
+TWEETS 2–(n-1) (Value):
+- One sharp insight per tweet. No filler.
+- Use short punchy lines, not paragraphs
+- Include specific examples, numbers, or named concepts where possible
+- Each tweet must be standalone-valuable — someone should want to screenshot it
+
+LAST TWEET (CTA):
+- Ask a genuine question OR give a strong reason to follow
+- Don't say "RT if useful" — make it conversational
 
 Rules:
-- Start with an irresistible hook tweet (no "Thread:" label — just the hook)
-- Each tweet max 280 characters
-- Use numbers for each tweet: 1/, 2/, 3/ etc.
-- Add value in every single tweet — no filler
-- Use line breaks for readability
-- End with a strong CTA tweet that drives follows/engagement
-- 8–15 tweets total
+- 10–14 tweets total
+- Max 260 characters per tweet (leave buffer)
+- Number as: 1/, 2/, 3/
 - Language: {language}
 
-Return ONLY the tweets, each on its own line starting with the number (1/, 2/, etc.).
-Separate tweets with a blank line."""
+Return ONLY the numbered tweets separated by blank lines. Nothing else."""
 
 
 class ThreadTransformer(BaseTransformer):
     platform = "X Thread"
-    emoji = "🐦"
+    emoji = "𝕏"
 
     def transform(self, content: dict) -> dict:
         instructions = INSTRUCTIONS.format(language=self.language)
@@ -38,9 +51,6 @@ class ThreadTransformer(BaseTransformer):
         }
 
     def _parse_tweets(self, raw: str) -> list[str]:
-        tweets = []
-        for line in raw.split("\n"):
-            line = line.strip()
-            if line and (line[0].isdigit() or line.startswith("—")):
-                tweets.append(line)
-        return tweets if tweets else [t.strip() for t in raw.split("\n\n") if t.strip()]
+        blocks = [b.strip() for b in raw.split("\n\n") if b.strip()]
+        tweets = [b for b in blocks if b and b[0].isdigit()]
+        return tweets if tweets else blocks

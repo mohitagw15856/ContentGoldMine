@@ -2,27 +2,30 @@ import json
 import re
 from .base import BaseTransformer
 
-SYSTEM_PROMPT = """You are an Instagram carousel creator who designs scroll-stopping
-educational carousels. Each slide must be punchy, visual-friendly, and make viewers
-swipe to the next one."""
+SYSTEM_PROMPT = """You create Instagram carousels that people screenshot and save.
+Every slide must earn its place — if someone can swipe past it without missing anything, cut it.
+You know that carousels live or die on the first slide (stops the scroll) and the last (drives action)."""
 
-INSTRUCTIONS = """Transform the content into an Instagram carousel (8–12 slides).
+INSTRUCTIONS = """Transform the content into a high-performing Instagram carousel (8–10 slides).
 
-Return a JSON array only. Each element:
+Return a JSON array. Each element must follow this exact schema:
 {{
   "slide": <number>,
-  "headline": "<bold headline, max 8 words>",
-  "body": "<supporting text, max 30 words>",
-  "emoji": "<1-2 relevant emojis>"
+  "type": "hook" | "insight" | "cta",
+  "headline": "<punchy headline, MAX 6 WORDS — short is powerful>",
+  "body": "<supporting detail, MAX 20 WORDS — one clear idea only>",
+  "emoji": "<1 highly relevant emoji>"
 }}
 
-Rules:
-- Slide 1: Hook slide — make them stop scrolling
-- Slides 2–(n-1): One key insight per slide
-- Last slide: CTA — follow/save/share
-- Language: {language}
+Slide rules:
+- Slide 1 (type: "hook"): Make them stop. Use a bold claim, surprising stat, or "you've been doing X wrong" angle. No fluff.
+- Slides 2–(n-1) (type: "insight"): One sharp, specific insight per slide. Concrete > vague. Named > generic.
+- Last slide (type: "cta"): "Save this." / "Follow for more [specific topic]." / "Share with someone who needs this."
 
-Return ONLY valid JSON array, no markdown fences."""
+Quality bar: Every headline should be good enough to stand alone as a tweet.
+Language: {language}
+
+Return ONLY a valid JSON array. No markdown fences, no explanation."""
 
 
 class CarouselTransformer(BaseTransformer):
@@ -43,12 +46,10 @@ class CarouselTransformer(BaseTransformer):
         }
 
     def _parse_slides(self, raw: str) -> list[dict]:
-        # Strip markdown fences if present
         cleaned = re.sub(r"```(?:json)?|```", "", raw).strip()
         try:
             return json.loads(cleaned)
         except json.JSONDecodeError:
-            # Best-effort extraction of individual slide objects
             objects = re.findall(r"\{[^{}]+\}", cleaned, re.DOTALL)
             slides = []
             for obj in objects:

@@ -4,6 +4,9 @@
 
 ### The content repurposing machine built for creators who want to work smarter.
 
+<img width="1731" height="909" alt="ChatGPT Image May 31, 2026, 12_11_45 PM" src="https://github.com/user-attachments/assets/057f95f8-c01b-4049-a65b-0bce50c10692" />
+
+
 **One blog post. One YouTube video. One idea.**
 **→ Instantly becomes a viral thread, LinkedIn post, newsletter, carousel, and video script.**
 

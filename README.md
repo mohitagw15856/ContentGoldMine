@@ -2,149 +2,153 @@
 
 # ⛏️ ContentGoldMine
 
-### Turn **one piece of content** into gold across every platform — instantly.
+### The content repurposing machine built for creators who want to work smarter.
 
-[![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python)](https://python.org)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/mohitagw15856/ContentGoldMine?style=social)](https://github.com/mohitagw15856/ContentGoldMine)
-[![Forks](https://img.shields.io/github/forks/mohitagw15856/ContentGoldMine?style=social)](https://github.com/mohitagw15856/ContentGoldMine)
+**One blog post. One YouTube video. One idea.**
+**→ Instantly becomes a viral thread, LinkedIn post, newsletter, carousel, and video script.**
 
-**Inspired by [MoneyPrinterTurbo](https://github.com/harry0703/MoneyPrinterTurbo) — but for the content repurposing goldmine.**
-
-[Features](#-features) · [Quick Start](#-quick-start) · [How it Works](#-how-it-works) · [API Docs](#-api) · [Roadmap](#-roadmap)
+[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://python.org)
+[![Stars](https://img.shields.io/github/stars/mohitagw15856/ContentGoldMine?style=social)](https://github.com/mohitagw15856/ContentGoldMine/stargazers)
+[![Forks](https://img.shields.io/github/forks/mohitagw15856/ContentGoldMine?style=social)](https://github.com/mohitagw15856/ContentGoldMine/network)
+[![License: MIT](https://img.shields.io/badge/License-MIT-D4AF37)](LICENSE)
+[![Inspired by MoneyPrinterTurbo](https://img.shields.io/badge/Inspired%20by-MoneyPrinterTurbo-gold)](https://github.com/harry0703/MoneyPrinterTurbo)
 
 </div>
 
 ---
 
+## The Problem Every Creator Knows
+
+You spend hours researching and writing a great piece of content.
+
+You publish it once. It gets a handful of views. Then it's gone.
+
+Meanwhile, the creators making real money from content aren't writing more — **they're repurposing smarter**. The same insight that makes a great LinkedIn post also makes a great Twitter thread, a newsletter section, an Instagram carousel, and a TikTok script.
+
+**ContentGoldMine automates that entire process.**
+
+---
+
+## See It In Action
+
+### The App
 ![ContentGoldMine UI](assets/screenshot.png)
 
-## What is ContentGoldMine?
+### Batch Mode — Process Multiple URLs At Once
+![Batch Mode](docs/screenshot_batch.png)
 
-You write (or find) **one piece of content** — a blog post, YouTube video, or raw notes.
+### 𝕏 Thread Output — Tweet Cards with Live Character Counts
+![Thread Output](docs/screenshot_thread.png)
 
-ContentGoldMine uses AI to automatically transform it into **5 platform-optimized formats**, ready to post:
+### 🎠 Carousel Slides — 1080×1080 Generated Images
+![Carousel Output](docs/screenshot_carousel.png)
 
-| Input | → | Outputs |
-|-------|---|---------|
-| Blog post URL | → | 🐦 Viral X Thread |
-| YouTube video URL | → | 💼 LinkedIn Post |
-| Raw text / notes | → | 📧 Newsletter Section |
-| | → | 🎠 Instagram Carousel (with images) |
-| | → | 🎬 Short Video Script (TikTok/Reels) |
-
-**One input. Five revenue streams. Zero manual work.**
+### 🎬 Video Script — Color-Coded Sections
+![Script Output](docs/screenshot_script.png)
 
 ---
 
-## ✨ Features
+## What You Get
 
-- **3 Input Types** — Blog URL, YouTube URL, or raw text
-- **5 Platform Outputs** — X Thread, LinkedIn, Newsletter, Instagram Carousel, Video Script
-- **Carousel Image Generation** — Generates actual 1080×1080 slide images with gradient themes
-- **3 LLM Providers** — OpenAI (GPT-4o), Anthropic (Claude), Google (Gemini)
-- **Multi-language** — Generate content in English, Spanish, French, German, and more
-- **Streamlit Web UI** — Clean, easy-to-use browser interface
-- **FastAPI Backend** — Full REST API for automation and integrations
-- **CLI** — Run from the terminal for scripting and automation
+Paste any URL or text → click **Mine the Gold** → get back 5 ready-to-post formats:
+
+| Format | What's Generated | Best For |
+|--------|-----------------|---------|
+| **𝕏 Thread** | 10–14 tweets with hooks, live char count | Growing X / Twitter |
+| **💼 LinkedIn Post** | Story-driven post with takeaways + hashtags | B2B authority & leads |
+| **📧 Newsletter** | Subject line, preview text, formatted body | Email monetization |
+| **🎠 Instagram Carousel** | 8–10 designed 1080×1080 PNG slides | Saves & shares |
+| **🎬 Video Script** | Hook + 3 points + payoff + CTA | TikTok / Reels / Shorts |
 
 ---
 
-## 🚀 Quick Start
+## Who Is This For?
 
-### 1. Clone & Install
+- **Content creators** who publish on one platform and watch everything else go dark
+- **Solopreneurs** who want to be everywhere without burning out
+- **Newsletter writers** who want to squeeze social reach from every issue
+- **YouTubers** who want to milk every video for 5× the reach
+- **Marketers** who need quality content at scale — not just volume
+
+---
+
+## Features
+
+- **3 Input Types** — Blog/article URL, YouTube URL, or raw text
+- **5 Platform Outputs** — Thread, LinkedIn, Newsletter, Carousel, Video Script
+- **📦 Batch Mode** — Drop in 10 URLs, get 50 pieces of content
+- **🎠 Beautiful Carousel Images** — Real 1080×1080 PNGs rendered via Playwright (not clip art)
+- **🔐 Saved API Keys** — Type once, use forever (stored locally, never sent anywhere)
+- **⚡ Live Progress** — Watch each format generate in real time
+- **🌍 Multi-language** — English, Spanish, French, German, Portuguese, Hindi, Arabic
+- **3 LLM Providers** — OpenAI, Anthropic (Claude), Google Gemini
+- **3 Carousel Themes** — Gold, Dark, Light
+- **REST API** — Full FastAPI backend for automation
+- **CLI** — Run from the terminal for scripting
+
+---
+
+## Quick Start
+
+### 1. Clone & install
 
 ```bash
 git clone https://github.com/mohitagw15856/ContentGoldMine.git
 cd ContentGoldMine
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+playwright install chromium
 ```
 
-### 2. Configure API Keys
-
-```bash
-cp .env.example .env
-# Edit .env and add your API key (OpenAI, Anthropic, or Gemini)
-```
-
-### 3. Launch the Web UI
+### 2. Launch
 
 ```bash
 python main.py webui
 # Opens at http://localhost:8501
 ```
 
-That's it. Paste a URL, pick your platforms, click **Mine the Gold**.
+### 3. Use it
+
+1. Paste your API key in the sidebar → hit **💾** to save it permanently
+2. Drop in a URL (blog, YouTube, or anything)
+3. Pick your platforms
+4. Click **⛏️ Mine the Gold**
+
+That's it. Your 5 formats will be ready in under 60 seconds.
 
 ---
 
-## 🖥️ Web UI
+## Batch Processing
+
+Turn a week's worth of reading into a week's worth of content in one click.
+
+Enable **Batch Mode** → paste your URLs (one per line) → hit Mine.
+
+ContentGoldMine processes each URL sequentially with live progress and outputs all formats grouped by source.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                  ⛏️  ContentGoldMine                         │
-│     Turn one piece of content into gold across every        │
-│                  platform — instantly.                      │
-├──────────────┬──────────────────────────────────────────────┤
-│  Settings    │  Input Type:  ● Blog URL  ○ YouTube  ○ Text │
-│              │                                              │
-│  Provider:   │  URL: https://yourblog.com/my-post           │
-│  [OpenAI  ▾] │                                              │
-│              │  Platforms:                                  │
-│  API Key:    │  ☑ X Thread   ☑ LinkedIn   ☑ Newsletter     │
-│  [●●●●●●●] │  ☑ Carousel   ☑ Video Script                 │
-│              │                                              │
-│  Language:   │         [ ⛏️  Mine the Gold ]                │
-│  [English ▾] │                                              │
-└──────────────┴──────────────────────────────────────────────┘
+https://medium.com/article-1
+https://youtube.com/watch?v=abc123
+https://yourfavoriteblog.com/post
 ```
+
+→ 3 URLs × 5 formats = **15 pieces of content**, automatically.
 
 ---
 
-## 🔧 How it Works
-
-```
-Input (URL / YouTube / Text)
-        │
-        ▼
-   ┌──────────┐
-   │ Ingestor │  ← Extracts clean text (trafilatura / yt-dlp)
-   └──────────┘
-        │
-        ▼
-   ┌─────────────┐
-   │ LLM Engine  │  ← OpenAI / Anthropic / Gemini
-   └─────────────┘
-        │
-   ┌────┴────────────────────────────────────┐
-   │                                         │
-   ▼         ▼         ▼         ▼          ▼
-X Thread  LinkedIn  Newsletter  Carousel  Video Script
-                                  │
-                                  ▼
-                           Image Renderer
-                         (1080×1080 PNGs)
-```
-
----
-
-## 🌐 API
-
-Start the API server:
+## API Usage
 
 ```bash
 python main.py api
 # Docs at http://localhost:8000/docs
 ```
 
-### Example Request
-
 ```bash
 curl -X POST http://localhost:8000/repurpose \
   -H "Content-Type: application/json" \
   -d '{
     "input_type": "url",
-    "value": "https://yourblog.com/my-post",
+    "value": "https://yourblog.com/post",
     "platforms": ["x_thread", "linkedin", "carousel"],
     "llm_provider": "openai",
     "api_key": "sk-...",
@@ -152,121 +156,85 @@ curl -X POST http://localhost:8000/repurpose \
   }'
 ```
 
-### Response
-
-```json
-{
-  "source": { "title": "My Post", "content": "...", "source": "https://..." },
-  "outputs": {
-    "x_thread": {
-      "platform": "X Thread",
-      "tweets": ["1/ Hook tweet...", "2/ Point one..."],
-      "tweet_count": 10
-    },
-    "linkedin": {
-      "platform": "LinkedIn Post",
-      "raw": "The full post text...",
-      "char_count": 1150
-    },
-    "carousel": {
-      "platform": "Instagram Carousel",
-      "slides": [...],
-      "image_paths": ["assets/carousel_output/slide_01.png", ...]
-    }
-  }
-}
-```
-
 ---
 
-## 💻 CLI Usage
+## CLI
 
 ```bash
-# Repurpose a blog post
+# Repurpose a blog post (all platforms)
 python main.py repurpose url "https://yourblog.com/post" --key sk-...
 
-# Repurpose a YouTube video, specific platforms only
+# YouTube video, specific platforms, Spanish output
 python main.py repurpose youtube "https://youtube.com/watch?v=..." \
-  --key sk-... \
-  --platforms "x_thread,linkedin"
-
-# Repurpose raw text in Spanish
-python main.py repurpose text "My amazing content here..." \
-  --key sk-... \
-  --lang Spanish
+  --key sk-... --platforms "x_thread,linkedin" --lang Spanish
 ```
 
 ---
 
-## 🛠️ Supported LLM Providers
+## Supported LLM Providers
 
-| Provider | Models | Key Env Var |
-|----------|--------|-------------|
-| OpenAI | `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo` | `OPENAI_API_KEY` |
-| Anthropic | `claude-sonnet-4-6`, `claude-opus-4-7` | `ANTHROPIC_API_KEY` |
-| Google Gemini | `gemini-1.5-pro`, `gemini-1.5-flash` | `GEMINI_API_KEY` |
+| Provider | Recommended Model | Get API Key |
+|----------|------------------|-------------|
+| **OpenAI** | `gpt-4o` | [platform.openai.com](https://platform.openai.com/api-keys) |
+| **Anthropic** | `claude-sonnet-4-6` | [console.anthropic.com](https://console.anthropic.com) |
+| **Google Gemini** | `gemini-1.5-pro` | [aistudio.google.com](https://aistudio.google.com/apikey) |
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 ContentGoldMine/
-├── main.py                    # CLI entry point
+├── main.py                     # CLI entry (webui / api / repurpose)
 ├── app/
-│   ├── webui.py               # Streamlit web interface
-│   └── api.py                 # FastAPI REST API
+│   ├── webui.py                # Streamlit UI
+│   └── api.py                  # FastAPI REST API
 ├── goldmine/
-│   ├── engine.py              # Core orchestrator
-│   ├── config.py              # Settings
-│   ├── ingestor/              # URL / YouTube / Text ingestion
-│   ├── llm/                   # LLM provider abstractions
-│   ├── transformer/           # Platform-specific content transformers
-│   └── renderer/              # Carousel image renderer (Pillow)
-└── assets/
-    └── carousel_output/       # Generated carousel images
+│   ├── engine.py               # Orchestrator
+│   ├── key_store.py            # Local API key persistence
+│   ├── ingestor/               # URL / YouTube / Text extractors
+│   ├── llm/                    # OpenAI, Anthropic, Gemini providers
+│   ├── transformer/            # Per-platform content transformers
+│   └── renderer/               # HTML→PNG carousel renderer (Playwright)
+└── assets/carousel_output/     # Generated carousel images
 ```
 
 ---
 
-## 🗺️ Roadmap
+## Roadmap
 
-- [x] Blog URL ingestion
-- [x] YouTube transcript ingestion
-- [x] X/Twitter thread generation
-- [x] LinkedIn post generation
-- [x] Newsletter section generation
-- [x] Instagram carousel (text + images)
-- [x] Short video script
-- [x] Multi-LLM provider support
+- [x] Blog URL + YouTube + raw text ingestion
+- [x] X Thread, LinkedIn, Newsletter, Carousel, Video Script
+- [x] Beautiful HTML+Playwright carousel image generation
+- [x] Saved API keys (local, private)
+- [x] Live generation progress
+- [x] **Batch processing** (multiple URLs at once)
 - [x] Multi-language support
-- [x] Streamlit web UI
-- [x] FastAPI backend
-- [ ] Auto-posting to X, LinkedIn, Instagram
-- [ ] Batch processing (multiple URLs at once)
-- [ ] Podcast episode generation (audio output)
-- [ ] Custom brand voice / tone settings
-- [ ] Scheduled repurposing (cron jobs)
-- [ ] Analytics dashboard
+- [x] FastAPI backend + CLI
+- [ ] Auto-post to X, LinkedIn, Instagram
+- [ ] Podcast/audio input (Whisper transcription)
+- [ ] Custom brand voice settings
+- [ ] Scheduled repurposing (weekly automation)
+- [ ] Analytics — track what performs best
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
-Pull requests welcome! Please open an issue first to discuss major changes.
+PRs welcome. Open an issue first for anything major.
 
 ---
 
-## 📄 License
+## License
 
-MIT License — use it, fork it, build on it.
+MIT — use it, fork it, build on it, make money with it.
 
 ---
 
 <div align="center">
 
-**If this saved you time, give it a ⭐ — it helps others find it.**
+**If ContentGoldMine saved you time, drop it a ⭐ — it helps other creators find it.**
 
-Made with ❤️ for content creators who want to work smarter, not harder.
+Built for creators who want to work 10× smarter, not harder.
 
 </div>

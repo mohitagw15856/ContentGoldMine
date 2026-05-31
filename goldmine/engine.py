@@ -50,6 +50,19 @@ class GoldMineEngine:
         else:
             raise ValueError(f"Unknown input type: {input_type}")
 
+    def process_platform(self, content: dict, platform_key: str, carousel_slug: str = "default") -> dict:
+        """Transform already-ingested content for a single platform."""
+        if platform_key not in PLATFORMS:
+            raise ValueError(f"Unknown platform: {platform_key}")
+        transformer = PLATFORMS[platform_key](self.llm, self.language)
+        output = transformer.transform(content)
+        if platform_key == "carousel" and output.get("slides"):
+            renderer = CarouselRenderer(theme=self.carousel_theme)
+            out_dir = self.output_dir / carousel_slug
+            slide_paths = renderer.render(output["slides"], out_dir)
+            output["image_paths"] = [str(p) for p in slide_paths]
+        return output
+
     def repurpose(
         self,
         input_type: str,

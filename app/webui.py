@@ -1,9 +1,12 @@
 import streamlit as st
 from pathlib import Path
 import sys
+import re
+import time
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from goldmine.engine import GoldMineEngine
+from goldmine.key_store import save_key, load_key
 
 st.set_page_config(
     page_title="ContentGoldMine",
@@ -12,154 +15,138 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-  /* ── Global ── */
   html, body, [class*="css"] { font-family: -apple-system, 'Segoe UI', sans-serif; }
   .block-container { padding: 2rem 2.5rem 3rem; max-width: 1200px; }
 
-  /* ── Hero ── */
-  .hero { text-align: center; padding: 1.5rem 0 2rem; }
+  .hero { text-align: center; padding: 1.5rem 0 1.8rem; }
   .hero-title {
     font-size: 3.2rem; font-weight: 900; letter-spacing: -1px;
     background: linear-gradient(90deg, #B8860B, #D4AF37, #FFD700, #D4AF37, #B8860B);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.4rem;
   }
-  .hero-sub {
-    font-size: 1.15rem; color: #888; font-weight: 400; margin-bottom: 0;
-  }
-  .hero-badges { margin-top: 0.8rem; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .hero-sub { font-size: 1.1rem; color: #888; margin-bottom: 0.8rem; }
+  .hero-badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
   .badge {
     background: #1A1A1F; border: 1px solid #2A2A30;
-    border-radius: 20px; padding: 4px 14px;
-    font-size: 0.78rem; color: #888;
+    border-radius: 20px; padding: 4px 14px; font-size: 0.78rem; color: #888;
   }
 
-  /* ── Input card ── */
-  .input-card {
-    background: #13131A; border: 1px solid #222230;
-    border-radius: 16px; padding: 1.8rem 2rem; margin-bottom: 1.5rem;
-  }
-
-  /* ── Mine button ── */
   div[data-testid="stButton"] > button {
     background: linear-gradient(135deg, #B8860B 0%, #D4AF37 40%, #FFD700 100%) !important;
-    color: #000 !important; font-weight: 800 !important;
-    font-size: 1.1rem !important; border: none !important;
-    border-radius: 10px !important; padding: 0.8rem 2rem !important;
-    width: 100% !important; letter-spacing: 0.3px !important;
+    color: #000 !important; font-weight: 800 !important; font-size: 1.05rem !important;
+    border: none !important; border-radius: 10px !important;
+    padding: 0.75rem 2rem !important; width: 100% !important; letter-spacing: 0.3px !important;
     transition: opacity 0.15s, transform 0.15s !important;
   }
-  div[data-testid="stButton"] > button:hover {
-    opacity: 0.92 !important; transform: translateY(-1px) !important;
-  }
+  div[data-testid="stButton"] > button:hover { opacity: 0.9 !important; transform: translateY(-1px) !important; }
 
-  /* ── Sidebar ── */
   section[data-testid="stSidebar"] { background: #0A0A0D; border-right: 1px solid #1E1E26; }
-  section[data-testid="stSidebar"] .stSelectbox label,
-  section[data-testid="stSidebar"] .stTextInput label { color: #999 !important; font-size: 0.82rem !important; }
 
-  /* ── Tweet cards ── */
+  .key-saved { color: #4CAF50; font-size: 0.8rem; font-weight: 600; padding: 2px 0; }
+
   .tweet-card {
     background: #13131A; border: 1px solid #222230;
-    border-radius: 14px; padding: 1.1rem 1.4rem;
-    margin-bottom: 0.7rem; position: relative;
+    border-radius: 14px; padding: 1rem 1.3rem 1rem 1.3rem;
+    margin-bottom: 0.65rem; position: relative;
   }
-  .tweet-card:hover { border-color: #D4AF37; }
-  .tweet-num { color: #D4AF37; font-weight: 700; font-size: 0.85rem; margin-bottom: 0.35rem; }
-  .tweet-text { color: #E0E0E0; font-size: 1rem; line-height: 1.55; white-space: pre-wrap; }
+  .tweet-card:hover { border-color: #D4AF3766; }
+  .tweet-num { color: #D4AF37; font-weight: 700; font-size: 0.82rem; margin-bottom: 0.3rem; }
+  .tweet-text { color: #E0E0E0; font-size: 0.97rem; line-height: 1.55; white-space: pre-wrap; padding-right: 60px; }
   .tweet-chars {
-    position: absolute; top: 10px; right: 14px;
-    font-size: 0.72rem; font-weight: 600; padding: 2px 8px;
-    border-radius: 10px;
+    position: absolute; top: 12px; right: 14px;
+    font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 10px;
   }
-  .chars-ok { background: #0d2d0d; color: #4CAF50; }
+  .chars-ok  { background: #0d2d0d; color: #4CAF50; }
   .chars-warn { background: #2d1f00; color: #FF9800; }
   .chars-over { background: #2d0000; color: #F44336; }
 
-  /* ── LinkedIn preview ── */
   .li-card {
     background: #13131A; border: 1px solid #222230;
-    border-radius: 14px; padding: 1.6rem 2rem; line-height: 1.7;
-    color: #D8D8D8; font-size: 1rem; white-space: pre-wrap;
+    border-radius: 14px; padding: 1.5rem 1.8rem; color: #D0D0D0;
+    font-size: 0.97rem; line-height: 1.75;
   }
   .li-header {
     display: flex; align-items: center; gap: 12px; margin-bottom: 1rem;
     padding-bottom: 1rem; border-bottom: 1px solid #222230;
   }
   .li-avatar {
-    width: 48px; height: 48px; border-radius: 50%;
+    width: 46px; height: 46px; border-radius: 50%;
     background: linear-gradient(135deg, #D4AF37, #8B6914);
     display: flex; align-items: center; justify-content: center;
-    font-size: 1.3rem; font-weight: 900; color: #000; flex-shrink: 0;
+    font-size: 1.2rem; font-weight: 900; color: #000; flex-shrink: 0;
   }
-  .li-name { font-weight: 700; color: #E0E0E0; font-size: 0.95rem; }
-  .li-title { color: #777; font-size: 0.82rem; margin-top: 1px; }
+  .li-name { font-weight: 700; color: #E0E0E0; font-size: 0.93rem; }
+  .li-meta { color: #666; font-size: 0.8rem; margin-top: 1px; }
 
-  /* ── Newsletter preview ── */
   .nl-subject {
-    background: #13131A; border: 1px solid #D4AF37;
-    border-radius: 10px; padding: 0.9rem 1.2rem; margin-bottom: 0.6rem;
+    background: #13131A; border: 1px solid #D4AF3766; border-radius: 10px;
+    padding: 0.85rem 1.2rem; margin-bottom: 0.55rem;
   }
-  .nl-subject-label { font-size: 0.72rem; color: #888; text-transform: uppercase; letter-spacing: 1px; }
-  .nl-subject-text { font-size: 1.1rem; font-weight: 700; color: #FFD700; margin-top: 2px; }
+  .nl-label { font-size: 0.68rem; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+  .nl-subject-text { font-size: 1.05rem; font-weight: 700; color: #FFD700; margin-top: 2px; }
+  .nl-preview-text { color: #777; font-size: 0.82rem; margin-top: 3px; font-style: italic; }
   .nl-body {
     background: #13131A; border: 1px solid #222230;
-    border-radius: 14px; padding: 1.8rem 2rem; color: #D8D8D8; line-height: 1.8;
+    border-radius: 14px; padding: 1.6rem 2rem; color: #D0D0D0; line-height: 1.8;
   }
 
-  /* ── Video script ── */
-  .script-section { margin-bottom: 1rem; }
+  .script-section { margin-bottom: 1.1rem; }
   .script-label {
-    display: inline-block; font-size: 0.72rem; font-weight: 800;
+    display: inline-block; font-size: 0.68rem; font-weight: 800;
     letter-spacing: 1.5px; text-transform: uppercase;
     padding: 3px 10px; border-radius: 6px; margin-bottom: 6px;
   }
-  .label-hook { background: #D4AF3722; color: #FFD700; border: 1px solid #D4AF3744; }
-  .label-point { background: #1A2A3A; color: #7ABCFF; border: 1px solid #2A4A6A; }
-  .label-payoff { background: #1A2A1A; color: #7AFF9A; border: 1px solid #2A4A2A; }
-  .label-cta { background: #2A1A1A; color: #FF9A7A; border: 1px solid #4A2A2A; }
-  .script-text { color: #D8D8D8; font-size: 1rem; line-height: 1.7; white-space: pre-wrap; padding-left: 2px; }
+  .label-hook   { background: #D4AF3722; color: #FFD700;  border: 1px solid #D4AF3744; }
+  .label-point  { background: #1A2A3A;   color: #7ABCFF;  border: 1px solid #2A4A6A; }
+  .label-payoff { background: #1A2A1A;   color: #7AFF9A;  border: 1px solid #2A4A2A; }
+  .label-cta    { background: #2A1A1A;   color: #FF9A7A;  border: 1px solid #4A2A2A; }
+  .script-text  { color: #D0D0D0; font-size: 0.97rem; line-height: 1.7; white-space: pre-wrap; }
 
-  /* ── Stat chips ── */
-  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.2rem; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.1rem; }
   .chip {
     background: #1A1A22; border: 1px solid #2A2A34;
     border-radius: 20px; padding: 4px 14px;
-    font-size: 0.8rem; color: #D4AF37; font-weight: 600;
+    font-size: 0.78rem; color: #D4AF37; font-weight: 600;
   }
 
-  /* ── Download button ── */
-  .dl-row { display: flex; gap: 8px; margin-top: 0.8rem; }
-
-  /* ── Copy area ── */
-  .stTextArea textarea {
-    background: #0D0D12 !important; color: #CCCCCC !important;
-    border: 1px solid #222230 !important; border-radius: 10px !important;
-    font-size: 0.9rem !important; font-family: 'Menlo', monospace !important;
-  }
-
-  /* ── Success banner ── */
   .success-banner {
     background: linear-gradient(135deg, #0D1F0D, #0D1A0D);
     border: 1px solid #1E4D1E; border-radius: 12px;
-    padding: 1rem 1.4rem; margin-bottom: 1.5rem;
-    display: flex; align-items: center; gap: 10px;
+    padding: 0.9rem 1.3rem; margin-bottom: 1.4rem;
     color: #7AFF9A; font-weight: 600;
   }
 
-  /* ── Tab styling ── */
-  button[data-baseweb="tab"] {
-    font-size: 0.9rem !important; font-weight: 600 !important;
+  .batch-url-result {
+    background: #0F0F14; border: 1px solid #222230;
+    border-radius: 14px; padding: 1.4rem 1.8rem; margin-bottom: 1rem;
   }
+
+  .stTextArea textarea {
+    background: #0D0D12 !important; color: #CCCCCC !important;
+    border: 1px solid #222230 !important; border-radius: 10px !important;
+    font-size: 0.88rem !important;
+  }
+
   button[data-baseweb="tab"][aria-selected="true"] {
-    color: #D4AF37 !important;
-    border-bottom: 2px solid #D4AF37 !important;
+    color: #D4AF37 !important; border-bottom: 2px solid #D4AF37 !important;
   }
 </style>
 """, unsafe_allow_html=True)
 
+# ── Constants ─────────────────────────────────────────────────────────────────
+PLATFORM_ICONS  = {"x_thread": "𝕏", "linkedin": "💼", "newsletter": "📧", "carousel": "🎠", "video_script": "🎬"}
+PLATFORM_LABELS = {"x_thread": "X Thread", "linkedin": "LinkedIn", "newsletter": "Newsletter", "carousel": "Carousel", "video_script": "Script"}
+PLATFORM_STEPS  = {
+    "x_thread":    "𝕏  Crafting viral thread...",
+    "linkedin":    "💼  Writing LinkedIn post...",
+    "newsletter":  "📧  Composing newsletter...",
+    "carousel":    "🎠  Building carousel slides...",
+    "video_script":"🎬  Scripting video...",
+}
 
 # ── Hero ──────────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -167,10 +154,8 @@ st.markdown("""
   <div class="hero-title">⛏️ ContentGoldMine</div>
   <div class="hero-sub">One input → five platform-ready formats, instantly.</div>
   <div class="hero-badges">
-    <span class="badge">𝕏 Thread</span>
-    <span class="badge">💼 LinkedIn</span>
-    <span class="badge">📧 Newsletter</span>
-    <span class="badge">🎠 Carousel</span>
+    <span class="badge">𝕏 Thread</span><span class="badge">💼 LinkedIn</span>
+    <span class="badge">📧 Newsletter</span><span class="badge">🎠 Carousel</span>
     <span class="badge">🎬 Video Script</span>
   </div>
 </div>
@@ -191,252 +176,288 @@ with st.sidebar:
             "gemini": "🔵 Google (Gemini)",
         }[x],
     )
-    model_defaults = {
-        "openai": "gpt-4o",
-        "anthropic": "claude-sonnet-4-6",
-        "gemini": "gemini-1.5-pro",
-    }
+
+    model_defaults = {"openai": "gpt-4o", "anthropic": "claude-sonnet-4-6", "gemini": "gemini-1.5-pro"}
     model = st.text_input("Model", value=model_defaults[provider])
-    api_key = st.text_input("API Key", type="password", placeholder="sk-...")
+
+    # ── API Key with memory ────────────────────────────────────────────────────
+    st.markdown("**API Key**")
+
+    # Load saved key when provider changes
+    _provider_key = f"_loaded_{provider}"
+    if not st.session_state.get(_provider_key):
+        stored = load_key(provider)
+        if stored:
+            st.session_state["_api_key"] = stored
+        st.session_state[_provider_key] = True
+
+    key_col, save_col = st.columns([4, 1])
+    with key_col:
+        api_key = st.text_input(
+            "key",
+            type="password",
+            placeholder="Paste your API key → press Enter",
+            key="_api_key",
+            label_visibility="collapsed",
+        )
+    with save_col:
+        st.write("")
+        save_clicked = st.button("💾", key="save_key_btn", help="Save key locally")
+
+    if save_clicked and api_key:
+        save_key(provider, api_key)
+        st.session_state["_just_saved"] = True
+
+    if st.session_state.pop("_just_saved", False):
+        st.markdown('<div class="key-saved">✅ Key saved — won\'t ask again</div>', unsafe_allow_html=True)
+    elif load_key(provider):
+        st.markdown('<div class="key-saved">🔐 Using saved key</div>', unsafe_allow_html=True)
+    else:
+        st.caption("Hit 💾 to save your key locally")
 
     st.divider()
-    language = st.selectbox(
-        "Output Language",
-        ["English", "Spanish", "French", "German", "Portuguese", "Hindi", "Arabic"],
-    )
+    language = st.selectbox("Output Language", ["English", "Spanish", "French", "German", "Portuguese", "Hindi", "Arabic"])
     carousel_theme = st.selectbox(
         "Carousel Theme",
         ["gold", "dark", "light"],
-        format_func=lambda x: {"gold": "⭐ Gold (Premium)", "dark": "🌑 Dark (Purple)", "light": "☀️ Light (Blue)"}[x],
+        format_func=lambda x: {"gold": "⭐ Gold", "dark": "🌑 Dark", "light": "☀️ Light"}[x],
     )
 
     st.divider()
-    st.markdown("**Select Platforms**")
+    st.markdown("**Platforms**")
     platforms = {
-        "x_thread":    st.checkbox("𝕏  Thread", value=True),
-        "linkedin":    st.checkbox("💼  LinkedIn Post", value=True),
-        "newsletter":  st.checkbox("📧  Newsletter", value=True),
-        "carousel":    st.checkbox("🎠  Instagram Carousel", value=True),
-        "video_script":st.checkbox("🎬  Video Script", value=True),
+        "x_thread":    st.checkbox("𝕏  X Thread",           value=True),
+        "linkedin":    st.checkbox("💼  LinkedIn Post",       value=True),
+        "newsletter":  st.checkbox("📧  Newsletter",          value=True),
+        "carousel":    st.checkbox("🎠  Instagram Carousel",  value=True),
+        "video_script":st.checkbox("🎬  Video Script",        value=True),
     }
     selected_platforms = [k for k, v in platforms.items() if v]
 
     st.divider()
-    st.caption("⛏️ [ContentGoldMine](https://github.com/mohitagw15856/ContentGoldMine)")
-
-
-# ── Input ─────────────────────────────────────────────────────────────────────
-input_type = st.radio(
-    "Input Type",
-    ["url", "youtube", "text"],
-    horizontal=True,
-    format_func=lambda x: {
-        "url": "🔗  Blog / Article URL",
-        "youtube": "▶️  YouTube Video",
-        "text": "✍️  Raw Text",
-    }[x],
-)
-
-if input_type == "text":
-    user_input = st.text_area(
-        "Paste your content",
-        height=140,
-        placeholder="Paste your blog post, notes, podcast transcript, or any content...",
-        label_visibility="collapsed",
-    )
-else:
-    placeholder = {
-        "url": "https://example.com/your-article",
-        "youtube": "https://www.youtube.com/watch?v=...",
-    }[input_type]
-    user_input = st.text_input("URL", placeholder=placeholder, label_visibility="collapsed")
-
-st.markdown("<br>", unsafe_allow_html=True)
-_, btn_col, _ = st.columns([1, 2, 1])
-with btn_col:
-    generate = st.button("⛏️  Mine the Gold", use_container_width=True)
+    st.caption("⛏️ [ContentGoldMine on GitHub](https://github.com/mohitagw15856/ContentGoldMine)")
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def char_chip(n: int) -> str:
     cls = "chars-ok" if n <= 240 else "chars-warn" if n <= 280 else "chars-over"
-    return f'<span class="tweet-chars {cls}">{n} / 280</span>'
-
+    return f'<span class="tweet-chars {cls}">{n}/280</span>'
 
 def render_thread(output: dict):
-    tweets = output.get("tweets") or []
-    for tweet in tweets:
-        text = tweet.lstrip("0123456789/").strip()
-        num_part = tweet[:tweet.index("/") + 1] if "/" in tweet[:4] else ""
-        n = len(text)
-        st.markdown(f"""
-<div class="tweet-card">
-  {char_chip(n)}
-  <div class="tweet-num">{num_part or "—"}</div>
-  <div class="tweet-text">{text}</div>
-</div>""", unsafe_allow_html=True)
-
+    for tweet in output.get("tweets") or []:
+        body = tweet.lstrip("0123456789/").strip()
+        num = tweet[:tweet.index("/")+1] if "/" in tweet[:4] else "—"
+        n = len(body)
+        st.markdown(f"""<div class="tweet-card">{char_chip(n)}
+<div class="tweet-num">{num}</div>
+<div class="tweet-text">{body}</div></div>""", unsafe_allow_html=True)
 
 def render_linkedin(output: dict):
-    text = output.get("raw", "")
-    st.markdown(f"""
-<div class="li-card">
-  <div class="li-header">
-    <div class="li-avatar">M</div>
-    <div>
-      <div class="li-name">Mohit</div>
-      <div class="li-title">Content Creator · ContentGoldMine</div>
-    </div>
-  </div>
-  {text.replace(chr(10), '<br>')}
-</div>""", unsafe_allow_html=True)
-
+    body = output.get("raw","").replace("\n","<br>")
+    st.markdown(f"""<div class="li-card"><div class="li-header">
+<div class="li-avatar">M</div>
+<div><div class="li-name">Mohit</div><div class="li-meta">Content Creator · ContentGoldMine</div></div>
+</div>{body}</div>""", unsafe_allow_html=True)
 
 def render_newsletter(output: dict):
-    raw = output.get("raw", "")
+    raw = output.get("raw","")
     lines = raw.split("\n")
-    subject = ""
-    preview = ""
-    body_lines = []
-    for i, line in enumerate(lines):
-        if line.lower().startswith("subject"):
-            subject = line.split(":", 1)[-1].strip().strip("*")
-        elif line.lower().startswith("preview"):
-            preview = line.split(":", 1)[-1].strip()
+    subject, preview, body_lines = "", "", []
+    for line in lines:
+        ll = line.lower()
+        if ll.startswith("subject"):
+            subject = line.split(":",1)[-1].strip().strip("*_")
+        elif ll.startswith("preview"):
+            preview = line.split(":",1)[-1].strip()
         else:
             body_lines.append(line)
     body = "\n".join(body_lines).strip()
     if subject:
-        st.markdown(f"""
-<div class="nl-subject">
-  <div class="nl-subject-label">Subject Line</div>
-  <div class="nl-subject-text">{subject}</div>
-  {'<div style="color:#888;font-size:0.82rem;margin-top:4px;">' + preview + '</div>' if preview else ''}
+        st.markdown(f"""<div class="nl-subject">
+<div class="nl-label">Subject Line</div>
+<div class="nl-subject-text">{subject}</div>
+{'<div class="nl-preview-text">' + preview + '</div>' if preview else ''}
 </div>""", unsafe_allow_html=True)
-    st.markdown(f'<div class="nl-body">', unsafe_allow_html=True)
+    st.markdown('<div class="nl-body">', unsafe_allow_html=True)
     st.markdown(body)
     st.markdown("</div>", unsafe_allow_html=True)
 
-
 def render_video_script(output: dict):
-    raw = output.get("raw", "")
-    import re
+    raw = output.get("raw","")
     label_map = {
-        "HOOK": ("label-hook", "🎯 Hook"),
-        "POINT 1": ("label-point", "📍 Point 1"),
-        "POINT 2": ("label-point", "📍 Point 2"),
-        "POINT 3": ("label-point", "📍 Point 3"),
-        "PAYOFF": ("label-payoff", "💡 Payoff"),
-        "CTA": ("label-cta", "📢 CTA"),
+        "HOOK":    ("label-hook",   "🎯 Hook"),
+        "POINT 1": ("label-point",  "📍 Point 1"),
+        "POINT 2": ("label-point",  "📍 Point 2"),
+        "POINT 3": ("label-point",  "📍 Point 3"),
+        "PAYOFF":  ("label-payoff", "💡 Payoff"),
+        "CTA":     ("label-cta",    "📢 CTA"),
     }
-    sections = re.split(r"\[([A-Z][A-Z 0-9]+)\s*[—–-]?[^\]]*\]", raw)
+    sections = re.split(r"\[([A-Z][A-Z 0-9]+)[^\]]*\]", raw)
     if len(sections) <= 1:
         st.markdown(f'<div class="script-text">{raw}</div>', unsafe_allow_html=True)
         return
-    result_html = ""
-    i = 0
+    html = ""
     if sections[0].strip():
-        result_html += f'<div class="script-section"><div class="script-text">{sections[0].strip()}</div></div>'
-        i = 1
+        html += f'<div class="script-section"><div class="script-text">{sections[0].strip()}</div></div>'
+    i = 1
     while i < len(sections) - 1:
         key = sections[i].strip()
-        text = sections[i + 1].strip() if i + 1 < len(sections) else ""
+        text = sections[i+1].strip() if i+1 < len(sections) else ""
         cls, label = label_map.get(key, ("label-point", f"▸ {key}"))
-        result_html += f"""
-<div class="script-section">
-  <span class="script-label {cls}">{label}</span>
-  <div class="script-text">{text}</div>
-</div>"""
+        html += f'<div class="script-section"><span class="script-label {cls}">{label}</span><div class="script-text">{text}</div></div>'
         i += 2
-    st.markdown(result_html, unsafe_allow_html=True)
+    st.markdown(html, unsafe_allow_html=True)
+
+def render_carousel(output: dict):
+    paths = output.get("image_paths") or []
+    if not paths:
+        st.info("No slides generated.")
+        return
+    for row_start in range(0, len(paths), 4):
+        row = paths[row_start:row_start+4]
+        cols = st.columns(len(row))
+        for col, p in zip(cols, row):
+            with col:
+                st.image(p, use_container_width=True)
+    st.caption(f"📁 Saved to `assets/carousel_output/`")
+
+def render_output_tabs(outputs: dict):
+    labels = [
+        f"{'❌' if 'error' in v else PLATFORM_ICONS.get(k,'')} {PLATFORM_LABELS.get(k,k)}"
+        for k, v in outputs.items()
+    ]
+    tabs = st.tabs(labels)
+    for tab, (key, output) in zip(tabs, outputs.items()):
+        with tab:
+            if "error" in output:
+                st.error(f"Failed: {output['error']}")
+                continue
+            chips = []
+            if "tweet_count" in output:   chips.append(f"🐦 {output['tweet_count']} tweets")
+            if "char_count"  in output:   chips.append(f"📝 {output['char_count']:,} chars")
+            if "word_count"  in output:   chips.append(f"📖 {output['word_count']} words")
+            if "slide_count" in output:   chips.append(f"🖼️ {output['slide_count']} slides")
+            if "estimated_duration_sec" in output: chips.append(f"⏱️ ~{output['estimated_duration_sec']}s")
+            if chips:
+                st.markdown(
+                    '<div class="chips">' + "".join(f'<span class="chip">{c}</span>' for c in chips) + "</div>",
+                    unsafe_allow_html=True,
+                )
+            if   key == "x_thread":    render_thread(output)
+            elif key == "linkedin":    render_linkedin(output)
+            elif key == "newsletter":  render_newsletter(output)
+            elif key == "video_script":render_video_script(output)
+            elif key == "carousel":    render_carousel(output)
+
+            with st.expander("📋 Copy raw text"):
+                st.text_area("", value=output["raw"], height=260, key=f"raw_{key}_{id(output)}", label_visibility="collapsed")
+
+
+def run_with_status(engine: GoldMineEngine, input_type: str, value: str, slug: str = "default") -> dict | None:
+    """Process content with a live status widget showing each step."""
+    outputs = {}
+    with st.status("⛏️ Mining content gold...", expanded=True) as status:
+        try:
+            st.write("🔍 Reading and extracting content...")
+            content = engine.ingest(input_type, value)
+            st.write(f"✅ Got: **{content['title']}** — {len(content['content']):,} characters extracted")
+
+            for platform in selected_platforms:
+                st.write(PLATFORM_STEPS[platform])
+                try:
+                    out = engine.process_platform(content, platform, carousel_slug=slug)
+                    outputs[platform] = out
+                    label = PLATFORM_LABELS[platform]
+                    st.write(f"✅ {label} ready")
+                except Exception as e:
+                    outputs[platform] = {"error": str(e), "raw": ""}
+                    st.write(f"⚠️ {PLATFORM_LABELS[platform]} failed: {e}")
+
+            status.update(label=f"✅ Done — {len([o for o in outputs.values() if 'error' not in o])}/{len(selected_platforms)} formats generated", state="complete", expanded=False)
+            return {"source": content, "outputs": outputs}
+        except Exception as e:
+            status.update(label=f"❌ Error: {e}", state="error", expanded=True)
+            return None
+
+
+# ── Input ─────────────────────────────────────────────────────────────────────
+batch_mode = st.toggle("📦 Batch Mode — process multiple URLs at once", value=False)
+
+if batch_mode:
+    st.markdown("**Enter URLs — one per line** (blog articles, YouTube videos, or mix both):")
+    urls_raw = st.text_area(
+        "urls",
+        height=140,
+        placeholder="https://medium.com/your-article\nhttps://youtube.com/watch?v=...\nhttps://yourblog.com/post",
+        label_visibility="collapsed",
+    )
+    urls = [u.strip() for u in urls_raw.splitlines() if u.strip()]
+    st.caption(f"{len(urls)} URL{'s' if len(urls)!=1 else ''} entered")
+else:
+    input_type = st.radio(
+        "Input Type", ["url", "youtube", "text"], horizontal=True,
+        format_func=lambda x: {"url": "🔗 Blog / Article URL", "youtube": "▶️ YouTube Video", "text": "✍️ Raw Text"}[x],
+    )
+    if input_type == "text":
+        user_input = st.text_area("Content", height=130,
+            placeholder="Paste your blog post, notes, podcast transcript...",
+            label_visibility="collapsed")
+    else:
+        user_input = st.text_input("URL",
+            placeholder={"url":"https://example.com/article","youtube":"https://youtube.com/watch?v=..."}[input_type],
+            label_visibility="collapsed")
+
+st.markdown("<br>", unsafe_allow_html=True)
+_, btn_col, _ = st.columns([1, 2, 1])
+with btn_col:
+    label = f"⛏️ Mine {len(urls)} URLs" if batch_mode and 'urls' in dir() and urls else "⛏️ Mine the Gold"
+    generate = st.button(label, use_container_width=True)
 
 
 # ── Generate ──────────────────────────────────────────────────────────────────
 if generate:
     if not api_key:
-        st.error("Add your API key in the sidebar first.")
-        st.stop()
-    if not user_input or not user_input.strip():
-        st.error("Enter a URL or paste some text to repurpose.")
+        st.error("Paste your API key in the sidebar — or hit 💾 to save one permanently.")
         st.stop()
     if not selected_platforms:
-        st.error("Select at least one output platform in the sidebar.")
+        st.error("Select at least one platform in the sidebar.")
         st.stop()
 
     engine = GoldMineEngine(
-        llm_provider=provider,
-        api_key=api_key,
-        model=model,
-        language=language,
-        carousel_theme=carousel_theme,
+        llm_provider=provider, api_key=api_key, model=model,
+        language=language, carousel_theme=carousel_theme,
     )
 
-    with st.spinner("⛏️ Mining your content gold..."):
-        try:
-            results = engine.repurpose(input_type, user_input, selected_platforms)
-        except Exception as e:
-            st.error(f"Error: {e}")
+    # ── Batch mode ────────────────────────────────────────────────────────────
+    if batch_mode:
+        if not urls:
+            st.error("Enter at least one URL in the box above.")
             st.stop()
 
-    source = results["source"]
-    n_ok = sum(1 for v in results["outputs"].values() if "error" not in v)
-    st.markdown(f"""
-<div class="success-banner">
-  ✅ &nbsp; <b>{source.get('title','your content')}</b> repurposed into <b>{n_ok}</b> formats.
-</div>""", unsafe_allow_html=True)
+        st.markdown(f"### Processing {len(urls)} URLs")
+        all_results = []
 
-    tab_labels = []
-    for k, v in results["outputs"].items():
-        ok = "error" not in v
-        icons = {"x_thread": "𝕏", "linkedin": "💼", "newsletter": "📧", "carousel": "🎠", "video_script": "🎬"}
-        names = {"x_thread": "Thread", "linkedin": "LinkedIn", "newsletter": "Newsletter", "carousel": "Carousel", "video_script": "Script"}
-        tab_labels.append(f"{'✅' if ok else '❌'} {icons.get(k,'')} {names.get(k, k)}")
+        for i, url in enumerate(urls):
+            st.markdown(f"#### {i+1}. `{url}`")
+            input_t = "youtube" if ("youtube.com" in url or "youtu.be" in url) else "url"
+            result = run_with_status(engine, input_t, url, slug=f"batch_{i}")
+            if result:
+                all_results.append(result)
+                render_output_tabs(result["outputs"])
+            st.divider()
 
-    tabs = st.tabs(tab_labels)
+        n_ok = len(all_results)
+        st.markdown(f'<div class="success-banner">✅ Batch complete — {n_ok}/{len(urls)} URLs processed successfully.</div>', unsafe_allow_html=True)
 
-    for tab, (key, output) in zip(tabs, results["outputs"].items()):
-        with tab:
-            if "error" in output:
-                st.error(f"Failed: {output['error']}")
-                continue
+    # ── Single mode ───────────────────────────────────────────────────────────
+    else:
+        if not user_input or not user_input.strip():
+            st.error("Enter a URL or paste some text first.")
+            st.stop()
 
-            # Stat chips
-            chips = []
-            if "tweet_count" in output:
-                chips.append(f"🐦 {output['tweet_count']} tweets")
-            if "char_count" in output:
-                chips.append(f"📝 {output['char_count']:,} chars")
-            if "word_count" in output:
-                chips.append(f"📖 {output['word_count']} words")
-            if "slide_count" in output:
-                chips.append(f"🖼️ {output['slide_count']} slides")
-            if "estimated_duration_sec" in output:
-                chips.append(f"⏱️ ~{output['estimated_duration_sec']}s")
-            if chips:
-                chip_html = "".join(f'<span class="chip">{c}</span>' for c in chips)
-                st.markdown(f'<div class="chips">{chip_html}</div>', unsafe_allow_html=True)
-
-            # Platform-specific rendering
-            if key == "x_thread":
-                render_thread(output)
-            elif key == "linkedin":
-                render_linkedin(output)
-            elif key == "newsletter":
-                render_newsletter(output)
-            elif key == "video_script":
-                render_video_script(output)
-            elif key == "carousel":
-                if output.get("image_paths"):
-                    cols_per_row = 4
-                    paths = output["image_paths"]
-                    for row_start in range(0, len(paths), cols_per_row):
-                        row = paths[row_start:row_start + cols_per_row]
-                        cols = st.columns(len(row))
-                        for col, img_path in zip(cols, row):
-                            with col:
-                                st.image(img_path, use_container_width=True)
-                    st.caption(f"📁 Slides saved to `assets/carousel_output/`")
-
-            # Raw copy area (collapsed by default for cleaner look)
-            with st.expander("📋 Copy raw text"):
-                st.text_area("", value=output["raw"], height=280, key=f"raw_{key}", label_visibility="collapsed")
+        result = run_with_status(engine, input_type, user_input)
+        if result:
+            source = result["source"]
+            n_ok = sum(1 for v in result["outputs"].values() if "error" not in v)
+            st.markdown(f'<div class="success-banner">✅ <b>{source.get("title","your content")}</b> → {n_ok} formats ready</div>', unsafe_allow_html=True)
+            render_output_tabs(result["outputs"])

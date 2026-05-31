@@ -23,7 +23,7 @@ You spend hours writing a great piece of content. You publish it once. It gets a
 
 Meanwhile, the creators making real money aren't writing more — **they're repurposing smarter.** The same insight that makes a great LinkedIn post also makes a great Twitter thread, a newsletter section, an Instagram carousel, and a TikTok script.
 
-**ContentGoldMine automates that entire process.**
+**ContentGoldMine automates that entire process — and now scores, schedules, and posts it for you.**
 
 ---
 
@@ -49,6 +49,18 @@ Meanwhile, the creators making real money aren't writing more — **they're repu
 
 ### 📦 Batch Mode — Process Multiple URLs at Once
 ![Batch Mode](docs/screenshot_batch.png)
+
+### 🏆 Viral Score — AI Rates Every Output Before You Post
+![Viral Score](docs/screenshot_viral_score.png)
+
+### 📤 Auto-Post — Push Directly to X, LinkedIn, or Any Webhook
+![Auto Post](docs/screenshot_publish.png)
+
+### 📅 Content Calendar — Week Planned Automatically After Batch
+![Content Calendar](docs/screenshot_calendar.png)
+
+### 🕘 History — Browse, Load & Re-download Any Past Run
+![History](docs/screenshot_history.png)
 
 ---
 
@@ -95,6 +107,14 @@ Paste any URL or text → click **Mine the Gold** → get back 5 ready-to-post f
 - **REST API** — Full FastAPI backend for automation
 - **CLI** — Run from terminal for scripting and pipelines
 
+### Intelligence & Publishing
+- **🏆 Viral Score** — After every generation, a second AI call rates each output: hook strength (1–10), estimated engagement (1–10), and one specific improvement tip. Know what to fix before you post.
+- **🕘 History & Saved Outputs** — Every run is auto-saved to a local SQLite database. Browse past runs in the sidebar, load any output, re-download its ZIP, or delete it.
+- **📤 Auto-Post to X** — Push your X thread directly from the app using the Twitter API v2. One click → chained thread posted.
+- **💼 Auto-Post to LinkedIn** — Post your LinkedIn output as a public share directly from the app using the LinkedIn UGC Posts API.
+- **🔗 Webhook (Buffer / Zapier / Make)** — Send any output to a webhook URL for automated scheduling. Works with any no-code automation tool.
+- **📅 Content Calendar** — After batch processing, your outputs are automatically slotted into a weekly grid. Edit days and status inline, then export as CSV for Buffer or Hootsuite.
+
 ---
 
 ## Who Is This For?
@@ -132,7 +152,8 @@ python main.py webui
 2. (Optional) Pick a **Tone** and describe your **Brand Voice**
 3. Drop in a URL or paste text
 4. Pick your platforms, click **⛏️ Mine the Gold**
-5. Copy outputs with one click or **📦 Download All as ZIP**
+5. See your **Viral Score** — hook strength, engagement, improvement tip
+6. Copy outputs with one click, **📦 Download All as ZIP**, or **📤 Post directly** to X / LinkedIn
 
 ---
 
@@ -162,6 +183,20 @@ Every output — thread, LinkedIn, newsletter, carousel, script — will match t
 
 ---
 
+## Viral Score
+
+After every generation, ContentGoldMine runs a second AI pass over each output and gives you:
+
+| Score | What it measures |
+|-------|-----------------|
+| **🎯 Hook Strength** | How likely the opening line stops the scroll (1–10) |
+| **📈 Engagement Score** | Predicted saves, shares, and replies (1–10) |
+| **💡 Tip** | One specific thing to change to improve it |
+
+Colour-coded green / amber / red so you see at a glance what's ready to post and what needs a tweak.
+
+---
+
 ## Batch Processing
 
 Turn a week's worth of reading into a week's worth of content in one session.
@@ -174,7 +209,36 @@ https://youtube.com/watch?v=abc123
 https://yourfavouriteblog.com/post
 ```
 
-→ 3 URLs × 5 formats = **15 pieces of content**. Each URL gets its own ZIP download.
+→ 3 URLs × 5 formats = **15 pieces of content**, each scored, calendared, and ZIP-downloadable.
+
+After batch completes, the **Content Calendar** auto-fills a weekly grid so you can see your entire week's content plan at a glance — then export as CSV for Buffer or Hootsuite.
+
+---
+
+## Auto-Publishing
+
+Add your credentials once in **sidebar → Publishing credentials** and never copy-paste again:
+
+```
+X Thread   → Twitter API v2 (Consumer Key + Secret + Access Token + Secret)
+LinkedIn   → LinkedIn OAuth Access Token
+Webhook    → Any URL (Buffer, Zapier, Make.com, n8n, custom endpoint)
+```
+
+Each output tab has a **📤 Post to platform** expander with three sub-tabs. Click once → done.
+
+---
+
+## History
+
+Every run is silently auto-saved to `~/.contentgoldmine/history.db`.
+
+Open **sidebar → History** to:
+- Browse the last 30 runs by date and title
+- **Load** any past run and get full output tabs with copy, download, and post buttons
+- **Delete** runs you no longer need
+
+Nothing is ever sent anywhere — it's all local.
 
 ---
 
@@ -234,10 +298,13 @@ ContentGoldMine/
 ├── goldmine/
 │   ├── engine.py               # Orchestrator
 │   ├── key_store.py            # Local API key persistence
+│   ├── scorer.py               # Viral score — second LLM pass per output
+│   ├── history.py              # SQLite run history (~/.contentgoldmine/)
 │   ├── ingestor/               # URL / YouTube / Text extractors
 │   ├── llm/                    # OpenAI, Anthropic, Gemini providers
 │   ├── transformer/            # Per-platform content transformers
 │   │   └── base.py             # Tone + brand voice injection
+│   ├── publisher/              # Auto-post: Twitter, LinkedIn, Webhook
 │   └── renderer/               # HTML→PNG carousel renderer (Playwright)
 └── assets/carousel_output/     # Generated carousel images
 ```
@@ -258,7 +325,12 @@ ContentGoldMine/
 - [x] **Custom Brand Voice** injection
 - [x] Multi-language support
 - [x] FastAPI backend + CLI
-- [ ] Auto-post to X, LinkedIn, Instagram
+- [x] **🏆 Viral Score** — hook strength, engagement score, improvement tip per output
+- [x] **🕘 History** — auto-saved SQLite DB, browse / load / delete past runs
+- [x] **📤 Auto-post to X** — Twitter API v2 thread posting
+- [x] **💼 Auto-post to LinkedIn** — UGC Posts API
+- [x] **🔗 Webhook** — Buffer / Zapier / Make.com / n8n
+- [x] **📅 Content Calendar** — weekly grid after batch, CSV export
 - [ ] Podcast/audio input (Whisper transcription)
 - [ ] Scheduled repurposing (weekly automation)
 - [ ] Analytics — track what performs best per platform

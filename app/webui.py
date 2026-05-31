@@ -2,11 +2,25 @@ import streamlit as st
 from pathlib import Path
 import sys
 import re
-import time
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from goldmine.engine import GoldMineEngine
 from goldmine.key_store import save_key, load_key
+from goldmine.llm import get_llm_provider
+
+
+def _unwrap(e: Exception) -> str:
+    """Pull the real error out of a tenacity RetryError."""
+    if hasattr(e, "last_attempt"):
+        inner = e.last_attempt.exception()
+        if inner is not None:
+            return str(inner)
+    return str(e)
+
+
+def _is_auth_error(msg: str) -> bool:
+    msg = msg.lower()
+    return any(k in msg for k in ("authentication", "api key", "invalid key", "incorrect api", "permission denied", "unauthenticated", "401", "403"))
 
 st.set_page_config(
     page_title="ContentGoldMine",
@@ -46,7 +60,13 @@ st.markdown("""
 
   section[data-testid="stSidebar"] { background: #0A0A0D; border-right: 1px solid #1E1E26; }
 
-  .key-saved { color: #4CAF50; font-size: 0.8rem; font-weight: 600; padding: 2px 0; }
+  .key-saved    { color: #4CAF50; font-size: 0.8rem; font-weight: 600; padding: 2px 0; }
+  .key-error    { color: #FF5252; font-size: 0.8rem; font-weight: 600; padding: 2px 0; }
+  .auth-banner  {
+    background: #1F0A0A; border: 1px solid #7F1F1F; border-radius: 12px;
+    padding: 1rem 1.4rem; margin-bottom: 1rem; color: #FF7070; font-size: 0.95rem;
+  }
+  .auth-banner b { color: #FF9090; }
 
   .tweet-card {
     background: #13131A; border: 1px solid #222230;
@@ -202,18 +222,37 @@ with st.sidebar:
         )
     with save_col:
         st.write("")
-        save_clicked = st.button("💾", key="save_key_btn", help="Save key locally")
+        save_clicked = st.button("💾", key="save_key_btn", help="Save key locally so you never have to paste it again")
 
     if save_clicked and api_key:
         save_key(provider, api_key)
         st.session_state["_just_saved"] = True
 
     if st.session_state.pop("_just_saved", False):
-        st.markdown('<div class="key-saved">✅ Key saved — won\'t ask again</div>', unsafe_allow_html=True)
+        st.markdown('<div class="key-saved">✅ Saved — won\'t ask again</div>', unsafe_allow_html=True)
     elif load_key(provider):
         st.markdown('<div class="key-saved">🔐 Using saved key</div>', unsafe_allow_html=True)
     else:
         st.caption("Hit 💾 to save your key locally")
+
+    # ── Test Key button ────────────────────────────────────────────────────────
+    if st.button("🔑 Test API Key", key="test_key_btn", use_container_width=True):
+        if not api_key:
+            st.error("Paste a key first.")
+        else:
+            with st.spinner("Checking key..."):
+                try:
+                    provider_obj = get_llm_provider(provider, api_key, model)
+                    provider_obj.test_connection()
+                    st.session_state["_key_status"] = "ok"
+                except Exception as e:
+                    st.session_state["_key_status"] = _unwrap(e)
+
+    ks = st.session_state.get("_key_status")
+    if ks == "ok":
+        st.markdown('<div class="key-saved">✅ Key is valid — ready to mine!</div>', unsafe_allow_html=True)
+    elif ks:
+        st.markdown(f'<div class="key-error">❌ {ks[:120]}</div>', unsafe_allow_html=True)
 
     st.divider()
     language = st.selectbox("Output Language", ["English", "Spanish", "French", "German", "Portuguese", "Hindi", "Arabic"])
@@ -367,16 +406,23 @@ def run_with_status(engine: GoldMineEngine, input_type: str, value: str, slug: s
                 try:
                     out = engine.process_platform(content, platform, carousel_slug=slug)
                     outputs[platform] = out
-                    label = PLATFORM_LABELS[platform]
-                    st.write(f"✅ {label} ready")
+                    st.write(f"✅ {PLATFORM_LABELS[platform]} ready")
                 except Exception as e:
-                    outputs[platform] = {"error": str(e), "raw": ""}
-                    st.write(f"⚠️ {PLATFORM_LABELS[platform]} failed: {e}")
+                    err = _unwrap(e)
+                    outputs[platform] = {"error": err, "raw": ""}
+                    st.write(f"⚠️ {PLATFORM_LABELS[platform]} failed: {err[:120]}")
 
-            status.update(label=f"✅ Done — {len([o for o in outputs.values() if 'error' not in o])}/{len(selected_platforms)} formats generated", state="complete", expanded=False)
+            n_ok = len([o for o in outputs.values() if "error" not in o])
+            status.update(label=f"✅ Done — {n_ok}/{len(selected_platforms)} formats generated", state="complete", expanded=False)
             return {"source": content, "outputs": outputs}
+
         except Exception as e:
-            status.update(label=f"❌ Error: {e}", state="error", expanded=True)
+            err = _unwrap(e)
+            status.update(label="❌ Failed", state="error", expanded=True)
+            if _is_auth_error(err):
+                st.session_state["_auth_error"] = err
+            else:
+                st.error(f"Error: {err}")
             return None
 
 
@@ -415,6 +461,14 @@ with btn_col:
 
 
 # ── Generate ──────────────────────────────────────────────────────────────────
+# Show auth error banner if the last run had a bad key
+if auth_err := st.session_state.pop("_auth_error", None):
+    st.markdown(f"""<div class="auth-banner">
+🔑 <b>Invalid API Key</b><br>
+Your key was rejected by {provider.upper()}. Please check it and try again.<br>
+<small style="opacity:0.7">{auth_err[:200]}</small>
+</div>""", unsafe_allow_html=True)
+
 if generate:
     if not api_key:
         st.error("Paste your API key in the sidebar — or hit 💾 to save one permanently.")

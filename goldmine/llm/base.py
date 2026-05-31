@@ -6,3 +6,7 @@ class BaseLLMProvider(ABC):
     def complete(self, system_prompt: str, user_prompt: str) -> str:
         """Send a prompt and return the text response."""
         ...
+
+    def test_connection(self) -> None:
+        """Validate the API key with a cheap call. Raises on failure."""
+        ...

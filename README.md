@@ -19,11 +19,9 @@
 
 ## The Problem Every Creator Knows
 
-You spend hours researching and writing a great piece of content.
+You spend hours writing a great piece of content. You publish it once. It gets a handful of views. Then it's gone.
 
-You publish it once. It gets a handful of views. Then it's gone.
-
-Meanwhile, the creators making real money from content aren't writing more — **they're repurposing smarter**. The same insight that makes a great LinkedIn post also makes a great Twitter thread, a newsletter section, an Instagram carousel, and a TikTok script.
+Meanwhile, the creators making real money aren't writing more — **they're repurposing smarter.** The same insight that makes a great LinkedIn post also makes a great Twitter thread, a newsletter section, an Instagram carousel, and a TikTok script.
 
 **ContentGoldMine automates that entire process.**
 
@@ -34,8 +32,11 @@ Meanwhile, the creators making real money from content aren't writing more — *
 ### The App
 ![ContentGoldMine UI](assets/screenshot.png)
 
-### Batch Mode — Process Multiple URLs At Once
-![Batch Mode](docs/screenshot_batch.png)
+### ⚙️ Settings Sidebar — Tone, Brand Voice & Saved API Keys
+![Sidebar](docs/screenshot_sidebar.png)
+
+### ✅ Results — Tweet Cards, Copy Button & ZIP Download
+![Results View](docs/screenshot_results.png)
 
 ### 𝕏 Thread Output — Tweet Cards with Live Character Counts
 ![Thread Output](docs/screenshot_thread.png)
@@ -46,6 +47,9 @@ Meanwhile, the creators making real money from content aren't writing more — *
 ### 🎬 Video Script — Color-Coded Sections
 ![Script Output](docs/screenshot_script.png)
 
+### 📦 Batch Mode — Process Multiple URLs at Once
+![Batch Mode](docs/screenshot_batch.png)
+
 ---
 
 ## What You Get
@@ -54,11 +58,42 @@ Paste any URL or text → click **Mine the Gold** → get back 5 ready-to-post f
 
 | Format | What's Generated | Best For |
 |--------|-----------------|---------|
-| **𝕏 Thread** | 10–14 tweets with hooks, live char count | Growing X / Twitter |
+| **𝕏 Thread** | 10–14 tweets with hooks, live char count per tweet | Growing X / Twitter |
 | **💼 LinkedIn Post** | Story-driven post with takeaways + hashtags | B2B authority & leads |
 | **📧 Newsletter** | Subject line, preview text, formatted body | Email monetization |
 | **🎠 Instagram Carousel** | 8–10 designed 1080×1080 PNG slides | Saves & shares |
-| **🎬 Video Script** | Hook + 3 points + payoff + CTA | TikTok / Reels / Shorts |
+| **🎬 Video Script** | Hook + 3 points + payoff + CTA, colour-coded | TikTok / Reels / Shorts |
+
+---
+
+## Features
+
+### Content Generation
+- **3 Input Types** — Blog/article URL, YouTube URL, or raw text
+- **5 Platform Outputs** — Thread, LinkedIn, Newsletter, Carousel, Video Script
+- **📦 Batch Mode** — Paste 10 URLs, get 50 pieces of content in one run
+- **🎠 Beautiful Carousel Images** — Real 1080×1080 PNGs rendered via Playwright
+
+### Make It Sound Like You
+- **🎭 Tone & Persona Selector** — Choose from 5 distinct voices:
+  - `Professional` — authoritative, data-backed, polished
+  - `Casual & Fun` — conversational, warm, light humour
+  - `Contrarian` — challenges conventional wisdom, provocative opener
+  - `Educational` — teacher-mode, analogies, logical structure
+  - `Storytelling` — emotional arc, scene-based, narrative-driven
+- **✍️ Custom Brand Voice** — Describe your voice in plain English. Every output will sound like *you*, not a generic AI.
+
+### Workflow & UX
+- **📋 One-click Copy** — Every output has a built-in copy button. No selecting, no Ctrl+A.
+- **📦 Download All as ZIP** — One click packages all text files + carousel images into a ready-to-share archive
+- **🔐 Saved API Keys** — Type once, saved locally. Never asked again.
+- **🔑 Test API Key** — Validate your key before running to avoid failed jobs
+- **⚡ Live Progress** — Watch each format generate step by step in real time
+- **🌍 Multi-language** — English, Spanish, French, German, Portuguese, Hindi, Arabic
+- **3 LLM Providers** — OpenAI, Anthropic (Claude), Google Gemini
+- **3 Carousel Themes** — Gold, Dark, Light
+- **REST API** — Full FastAPI backend for automation
+- **CLI** — Run from terminal for scripting and pipelines
 
 ---
 
@@ -66,25 +101,9 @@ Paste any URL or text → click **Mine the Gold** → get back 5 ready-to-post f
 
 - **Content creators** who publish on one platform and watch everything else go dark
 - **Solopreneurs** who want to be everywhere without burning out
-- **Newsletter writers** who want to squeeze social reach from every issue
+- **Newsletter writers** who want to squeeze more reach from every issue
 - **YouTubers** who want to milk every video for 5× the reach
 - **Marketers** who need quality content at scale — not just volume
-
----
-
-## Features
-
-- **3 Input Types** — Blog/article URL, YouTube URL, or raw text
-- **5 Platform Outputs** — Thread, LinkedIn, Newsletter, Carousel, Video Script
-- **📦 Batch Mode** — Drop in 10 URLs, get 50 pieces of content
-- **🎠 Beautiful Carousel Images** — Real 1080×1080 PNGs rendered via Playwright (not clip art)
-- **🔐 Saved API Keys** — Type once, use forever (stored locally, never sent anywhere)
-- **⚡ Live Progress** — Watch each format generate in real time
-- **🌍 Multi-language** — English, Spanish, French, German, Portuguese, Hindi, Arabic
-- **3 LLM Providers** — OpenAI, Anthropic (Claude), Google Gemini
-- **3 Carousel Themes** — Gold, Dark, Light
-- **REST API** — Full FastAPI backend for automation
-- **CLI** — Run from the terminal for scripting
 
 ---
 
@@ -110,29 +129,52 @@ python main.py webui
 ### 3. Use it
 
 1. Paste your API key in the sidebar → hit **💾** to save it permanently
-2. Drop in a URL (blog, YouTube, or anything)
-3. Pick your platforms
-4. Click **⛏️ Mine the Gold**
+2. (Optional) Pick a **Tone** and describe your **Brand Voice**
+3. Drop in a URL or paste text
+4. Pick your platforms, click **⛏️ Mine the Gold**
+5. Copy outputs with one click or **📦 Download All as ZIP**
 
-That's it. Your 5 formats will be ready in under 60 seconds.
+---
+
+## Tone & Brand Voice
+
+Two settings that change everything about the output quality:
+
+**Tone selector** — applies to all 5 outputs at once:
+
+```
+Professional  → "This data suggests a 3x improvement in retention..."
+Casual & Fun  → "Okay so here's the thing nobody tells you about retention..."
+Contrarian    → "Everyone's obsessing over retention. Here's why that's wrong."
+Educational   → "Retention works like a leaky bucket. Let me explain..."
+Storytelling  → "Last Tuesday, I watched a startup lose 40% of users overnight..."
+```
+
+**Brand Voice** — describe yourself in plain English in the sidebar text area:
+
+```
+e.g. "I'm a no-BS founder. Plain English. Short sentences.
+      I never use buzzwords like 'leverage' or 'synergy'.
+      I'm direct and slightly opinionated."
+```
+
+Every output — thread, LinkedIn, newsletter, carousel, script — will match that voice.
 
 ---
 
 ## Batch Processing
 
-Turn a week's worth of reading into a week's worth of content in one click.
+Turn a week's worth of reading into a week's worth of content in one session.
 
-Enable **Batch Mode** → paste your URLs (one per line) → hit Mine.
-
-ContentGoldMine processes each URL sequentially with live progress and outputs all formats grouped by source.
+Enable **Batch Mode** → paste URLs (one per line) → hit Mine.
 
 ```
 https://medium.com/article-1
 https://youtube.com/watch?v=abc123
-https://yourfavoriteblog.com/post
+https://yourfavouriteblog.com/post
 ```
 
-→ 3 URLs × 5 formats = **15 pieces of content**, automatically.
+→ 3 URLs × 5 formats = **15 pieces of content**. Each URL gets its own ZIP download.
 
 ---
 
@@ -195,6 +237,7 @@ ContentGoldMine/
 │   ├── ingestor/               # URL / YouTube / Text extractors
 │   ├── llm/                    # OpenAI, Anthropic, Gemini providers
 │   ├── transformer/            # Per-platform content transformers
+│   │   └── base.py             # Tone + brand voice injection
 │   └── renderer/               # HTML→PNG carousel renderer (Playwright)
 └── assets/carousel_output/     # Generated carousel images
 ```
@@ -206,16 +249,19 @@ ContentGoldMine/
 - [x] Blog URL + YouTube + raw text ingestion
 - [x] X Thread, LinkedIn, Newsletter, Carousel, Video Script
 - [x] Beautiful HTML+Playwright carousel image generation
-- [x] Saved API keys (local, private)
-- [x] Live generation progress
+- [x] Saved API keys (local, private) + Test Key button
+- [x] Live generation progress (per-platform status)
 - [x] **Batch processing** (multiple URLs at once)
+- [x] **One-click copy buttons** on every output
+- [x] **Download All as ZIP** (text files + carousel images)
+- [x] **Tone & Persona selector** (5 distinct voices)
+- [x] **Custom Brand Voice** injection
 - [x] Multi-language support
 - [x] FastAPI backend + CLI
 - [ ] Auto-post to X, LinkedIn, Instagram
 - [ ] Podcast/audio input (Whisper transcription)
-- [ ] Custom brand voice settings
 - [ ] Scheduled repurposing (weekly automation)
-- [ ] Analytics — track what performs best
+- [ ] Analytics — track what performs best per platform
 
 ---
 

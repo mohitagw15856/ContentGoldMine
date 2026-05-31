@@ -6,8 +6,8 @@
 
 [![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/yourusername/ContentGoldMine?style=social)](https://github.com/yourusername/ContentGoldMine)
-[![Forks](https://img.shields.io/github/forks/yourusername/ContentGoldMine?style=social)](https://github.com/yourusername/ContentGoldMine)
+[![Stars](https://img.shields.io/github/stars/mohitagw15856/ContentGoldMine?style=social)](https://github.com/mohitagw15856/ContentGoldMine)
+[![Forks](https://img.shields.io/github/forks/mohitagw15856/ContentGoldMine?style=social)](https://github.com/mohitagw15856/ContentGoldMine)
 
 **Inspired by [MoneyPrinterTurbo](https://github.com/harry0703/MoneyPrinterTurbo) — but for the content repurposing goldmine.**
 
@@ -16,6 +16,8 @@
 </div>
 
 ---
+
+![ContentGoldMine UI](assets/screenshot.png)
 
 ## What is ContentGoldMine?
 
@@ -53,7 +55,7 @@ ContentGoldMine uses AI to automatically transform it into **5 platform-optimize
 ### 1. Clone & Install
 
 ```bash
-git clone https://github.com/yourusername/ContentGoldMine.git
+git clone https://github.com/mohitagw15856/ContentGoldMine.git
 cd ContentGoldMine
 pip install -r requirements.txt
 ```
